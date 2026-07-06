@@ -87,6 +87,57 @@ export const PROC_DATA_DEFS = {
   },
 };
 
+/* ---------------- FDC 장비 센서 정의 (공정별) ----------------
+   linked:true 센서는 이상 케이스 발생 시 계측 이상과 상관된 변동을 보인다.
+   → 계측 데이터(결과)와 FDC 센서(원인)를 연결해 근본원인을 찾는 훈련용 */
+export const FDC_DEFS = {
+  wafer: [
+    { key: 'pull_speed', name: '잉곳 인상 속도', unit: 'mm/min', base: 1.2, noise: 0.02, linked: true },
+    { key: 'melt_temp', name: '용융 실리콘 온도', unit: '°C', base: 1420, noise: 1.5 },
+    { key: 'crucible_rot', name: '도가니 회전수', unit: 'rpm', base: 8, noise: 0.15 },
+  ],
+  oxidation: [
+    { key: 'furnace_temp', name: '노 중심부 온도', unit: '°C', base: 950, noise: 0.6, linked: true },
+    { key: 'o2_flow', name: 'O₂ 유량', unit: 'slm', base: 5.0, noise: 0.08 },
+    { key: 'ramp_rate', name: '승온 속도', unit: '°C/min', base: 10, noise: 0.2 },
+  ],
+  photo: [
+    { key: 'dose', name: '노광 도즈', unit: 'mJ/cm²', base: 30.0, noise: 0.15, linked: true },
+    { key: 'hotplate_temp', name: '핫플레이트 온도', unit: '°C', base: 110, noise: 0.25 },
+    { key: 'focus', name: '포커스 오프셋', unit: 'nm', base: 0, noise: 4 },
+  ],
+  etch: [
+    { key: 'rf_power', name: 'RF 소스 파워', unit: 'W', base: 1500, noise: 8, linked: true },
+    { key: 'pressure', name: '챔버 압력', unit: 'mTorr', base: 15, noise: 0.25 },
+    { key: 'he_flow', name: 'He 백사이드 유량', unit: 'sccm', base: 8, noise: 0.2 },
+  ],
+  deposition: [
+    { key: 'heater_temp', name: '히터(서셉터) 온도', unit: '°C', base: 400, noise: 1.2, linked: true },
+    { key: 'precursor_flow', name: '전구체 가스 유량', unit: 'sccm', base: 120, noise: 1.5 },
+    { key: 'chamber_p', name: '챔버 압력', unit: 'Torr', base: 3.0, noise: 0.05 },
+  ],
+  metal: [
+    { key: 'plating_i', name: '도금 전류밀도', unit: 'mA/cm²', base: 20, noise: 0.3, linked: true },
+    { key: 'slurry_flow', name: 'CMP 슬러리 유량', unit: 'ml/min', base: 200, noise: 3 },
+    { key: 'head_p', name: 'CMP 헤드 압력', unit: 'psi', base: 3.5, noise: 0.06 },
+  ],
+  eds: [
+    { key: 'chuck_temp', name: '웨이퍼 척 온도', unit: '°C', base: 85, noise: 0.3, linked: true },
+    { key: 'contact_r', name: '프로브 접촉 저항', unit: 'Ω', base: 1.2, noise: 0.05 },
+    { key: 'overdrive', name: '프로브 오버드라이브', unit: 'µm', base: 75, noise: 1 },
+  ],
+  packaging: [
+    { key: 'bond_force', name: '다이본딩 하중', unit: 'N', base: 50, noise: 0.8, linked: true },
+    { key: 'reflow_peak', name: '리플로우 피크 온도', unit: '°C', base: 245, noise: 1.0 },
+    { key: 'mold_p', name: '몰딩 프레스 압력', unit: 'MPa', base: 8.0, noise: 0.12 },
+  ],
+  hbm: [
+    { key: 'tc_force', name: 'TC본더 압착 하중', unit: 'N', base: 35, noise: 0.5, linked: true },
+    { key: 'reflow_peak', name: '매스 리플로우 피크', unit: '°C', base: 250, noise: 1.2 },
+    { key: 'muf_visc', name: 'MUF 점도 지표', unit: 'cP', base: 120, noise: 2 },
+  ],
+};
+
 /* ---------------- 사이트 좌표 (13-site 표준 배치) ---------------- */
 export const SITES = (() => {
   const s = [{ x: 0, y: 0 }];
@@ -150,6 +201,25 @@ export function generate(procId, { seed = 42, anomaly = null, lots = 8, wafersPe
           const r = Math.hypot(s.x, s.y);
           return v + radialCoef * r * r + gauss(rng) * p.sigma * 0.35;
         });
+      }
+
+      // FDC 장비 센서 (웨이퍼 run별 요약값) — linked 센서는 이상과 상관
+      let eff = 0;
+      if (anomaly) {
+        switch (anomaly.type) {
+          case 'shift': case 'edge': eff = idx >= startIdx ? 1 : 0; break;
+          case 'drift': eff = idx >= startIdx ? (idx - startIdx) / (total - startIdx) : 0; break;
+          case 'spike': eff = (idx === startIdx || idx === startIdx + 7) ? 1.6 : 0; break;
+          case 'highvar': eff = idx >= startIdx ? Math.abs(gauss(rng)) * 0.8 : 0; break;
+          case 'cyclic': eff = idx >= startIdx ? (Math.sin((idx - startIdx) * 0.8) + 1) / 2 : 0; break;
+          case 'lot': eff = li === badLot ? 1 : 0; break;
+        }
+      }
+      wafer.fdc = {};
+      for (const s of (FDC_DEFS[procId] || [])) {
+        const scale = Math.max(Math.abs(s.base) * 0.02, s.noise * 2.5);
+        const disturb = s.linked ? eff * scale * ((anomaly?.mag ?? 2.5) / 2.5) : 0;
+        wafer.fdc[s.key] = s.base + gauss(rng) * s.noise + disturb;
       }
 
       // 빈맵 (EDS/HBM)
@@ -254,4 +324,22 @@ export function weRules(values, mean, sigma) {
 
 export function fmt(v, def) {
   return v.toFixed(def?.digits ?? 2);
+}
+
+/* ---------------- FDC 트레이스 (공정 중 실시간 센서 파형) ----------------
+   램프업 → 정상 구간 → 램프다운 형태. 정상 구간 레벨은 해당 웨이퍼의
+   fdc 요약값이므로 이상 케이스의 교란이 그대로 반영된다. */
+export function fdcTrace(dataset, waferIdx, sensor, points = 80) {
+  const rng = mulberry32((dataset.seed * 7919 + waferIdx * 131 + sensor.key.length * 17) >>> 0);
+  const level = dataset.wafers[waferIdx].fdc[sensor.key];
+  const idle = sensor.base === 0 ? -sensor.noise * 6 : sensor.base * 0.12;
+  const pts = [];
+  for (let i = 0; i < points; i++) {
+    let v;
+    if (i < 8) v = idle + (level - idle) * (i / 8);                 // 램프업
+    else if (i < points - 10) v = level + gauss(rng) * sensor.noise * 0.55; // 정상 공정
+    else v = level + (idle - level) * ((i - (points - 10)) / 10);   // 램프다운
+    pts.push(v);
+  }
+  return pts;
 }

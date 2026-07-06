@@ -25,7 +25,7 @@ npx serve .
 | `index.html` | 3D 공정 여정 오버뷰 — 8개 스테이션 + 중앙 HBM 스택 (클릭 내비게이션) |
 | `process.html?id=<공정>` | 공정별 3D 설비 + 단계 애니메이션 + 원리/장비/파라미터/불량 학습 |
 | `hbm.html` | HBM 심화 — TSV·적층·MR-MUF 인터랙티브 3D |
-| `spotfire.html` | 계측 데이터 대시보드 (SPC 관리도·빈맵·박스플롯) + 이상 사례 퀴즈 학습 |
+| `spotfire.html` | 계측 데이터 대시보드 (SPC 관리도·빈맵·박스플롯·FDC 장비 센서 트렌드/트레이스) + 이상 사례 퀴즈 학습 |
 
 ### 8대 공정
 웨이퍼 제조 → 산화 → 포토 → 식각 → 증착·이온주입 → 금속배선 → EDS 테스트 → 패키징
@@ -38,7 +38,7 @@ js/data/processes-index.js 공정 레지스트리 (내비/색상 단일 소스)
 js/lib/three-core.js       3D 씬 부트스트랩 (조명/컨트롤/피킹/카메라 애니메이션)
 js/lib/equip-kit.js        장비 3D 부품 키트 (챔버/로봇/웨이퍼/입자 등)
 js/processes/<id>.js       공정별 모듈 (3D 장비 + 학습 콘텐츠)
-js/spotfire/datagen.js     팹 계측 데이터 시뮬레이터 (Lot/Wafer/Site + 이상 주입 + SPC)
+js/spotfire/datagen.js     팹 계측 데이터 시뮬레이터 (Lot/Wafer/Site + 이상 주입 + SPC + FDC 센서)
 js/spotfire/charts.js      캔버스 차트 (관리도/웨이퍼맵/빈맵/박스플롯/히스토그램)
 js/spotfire/cases.js       공정별 이상 사례 학습 케이스 뱅크 (18개)
 vendor/                    Three.js 로컬 번들 (three.module.js + addons)

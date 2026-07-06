@@ -1,7 +1,7 @@
 // Spotfire 분석실 — 공정 계측 대시보드 + 이상 사례 학습
 import { PROCESSES, HBM, renderNav } from '../data/processes-index.js';
-import { PROC_DATA_DEFS, SITES, generate, spcStats, weRules, fmt } from './datagen.js';
-import { controlChart, chartHitTest, siteMap, binMap, boxPlot, histogram } from './charts.js';
+import { PROC_DATA_DEFS, FDC_DEFS, SITES, generate, spcStats, weRules, fmt, fdcTrace } from './datagen.js';
+import { controlChart, chartHitTest, siteMap, binMap, boxPlot, histogram, fdcTrend, traceChart } from './charts.js';
 import { CASES } from './cases.js';
 
 renderNav('spotfire');
@@ -16,6 +16,7 @@ const state = {
   activeCase: null,
   quizDone: 0,
   resolved: false,
+  fdcKey: null,
 };
 if (!PROC_DATA_DEFS[state.procId]) state.procId = 'photo';
 
@@ -123,6 +124,17 @@ function renderDash() {
         <span class="viz-info" id="wafer-info">${selW.lot} #${String(selW.waferNo).padStart(2, '0')}</span></div>
       <canvas id="cv-wafer"></canvas>
     </div>
+    <div class="sf-viz span6">
+      <div class="viz-head"><b>📡 FDC 장비 센서 트렌드</b>
+        <select id="fdc-sensor" style="background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11.5px;font-family:inherit"></select>
+        <span class="viz-info">run별 평균 · 클릭=웨이퍼 선택</span></div>
+      <canvas id="cv-fdc-trend"></canvas>
+    </div>
+    <div class="sf-viz span6">
+      <div class="viz-head"><b>📉 선택 웨이퍼 공정 트레이스</b>
+        <span class="viz-info">${selW.lot} #${String(selW.waferNo).padStart(2, '0')} · 공정 중 실시간 파형</span></div>
+      <canvas id="cv-fdc-trace"></canvas>
+    </div>
     <div class="sf-viz span12" style="min-height:auto">
       <div class="viz-head"><b>⚠ Rule 위반 로그</b><span class="viz-info">클릭하면 해당 웨이퍼 선택</span></div>
       <div id="viol-log" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0">
@@ -150,8 +162,31 @@ function renderDash() {
     const cvW = document.getElementById('cv-wafer');
     if (ds.def.hasBinMap) binMap(cvW, selW.binMap, { pattern: selW.flags.binPattern });
     else siteMap(cvW, SITES, selW.sites[state.paramKey], { def });
+    // FDC
+    const sensors = FDC_DEFS[state.procId] || [];
+    const sensor = sensors.find(s => s.key === state.fdcKey) || sensors[0];
+    if (sensor) {
+      fdcTrend(document.getElementById('cv-fdc-trend'),
+        ds.wafers.map(w => w.fdc[sensor.key]),
+        { sensor, selected: state.selected, lotBounds });
+      traceChart(document.getElementById('cv-fdc-trace'),
+        fdcTrace(ds, state.selected, sensor), { sensor });
+    }
   };
   requestAnimationFrame(draw);
+
+  // FDC 센서 선택
+  const sensors = FDC_DEFS[state.procId] || [];
+  const fdcSel = document.getElementById('fdc-sensor');
+  if (!state.fdcKey || !sensors.find(s => s.key === state.fdcKey)) state.fdcKey = sensors[0]?.key;
+  fdcSel.innerHTML = sensors.map(s =>
+    `<option value="${s.key}" ${s.key === state.fdcKey ? 'selected' : ''}>${s.name} (${s.unit})</option>`).join('');
+  fdcSel.addEventListener('change', e => { state.fdcKey = e.target.value; renderDash(); });
+  const cvFdc = document.getElementById('cv-fdc-trend');
+  cvFdc.addEventListener('click', e => {
+    const i = chartHitTest(cvFdc, e);
+    if (i >= 0) { state.selected = i; renderDash(); }
+  });
 
   cvC.addEventListener('click', e => {
     const i = chartHitTest(cvC, e);
@@ -200,6 +235,10 @@ function casePanelHTML() {
     <div style="font-size:12px;color:var(--dim)">
       ${c.questions.map((_, i) => i < state.quizDone ? '✅' : '⬜').join(' ')}
       ${state.quizDone >= c.questions.length ? ' — 모든 진단 완료! 상단 <b style="color:var(--ok)">조치 완료</b> 버튼을 눌러 데이터를 재수집하세요.' : ''}
+    </div>
+    <div style="font-size:12px;color:var(--info);margin-top:8px">
+      📡 힌트: 아래 <b>FDC 장비 센서 트렌드</b>에서 계측 이상과 같은 시점에 움직인 센서를 찾아보세요 —
+      결과(계측)와 원인(장비 상태)의 상관이 근본원인 분석의 출발점입니다.
     </div>
   </div>`;
 }

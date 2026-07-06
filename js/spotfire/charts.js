@@ -245,6 +245,98 @@ export function histogram(canvas, values, { def, stats, bins = 24, color = C.lin
   if (stats) vline(stats.allMean, '#8ab4ff', 'x̄');
 }
 
+/* ---------------- FDC 트렌드 (웨이퍼별 센서 요약값) ---------------- */
+// 정상 밴드(base±3σ)를 배경으로 깔고 벗어나는 구간을 강조. 클릭=웨이퍼 선택(chartHitTest 호환)
+export function fdcTrend(canvas, values, { sensor, selected = -1, color = '#22d3ee', lotBounds = [] } = {}) {
+  const { g, w, h } = setup(canvas);
+  const padL = 52, padR = 12, padT = 14, padB = 22;
+  const pw = w - padL - padR, ph = h - padT - padB;
+
+  const bandLo = sensor.base - 3 * sensor.noise, bandHi = sensor.base + 3 * sensor.noise;
+  let min = Math.min(...values, bandLo), max = Math.max(...values, bandHi);
+  const pad = (max - min) * 0.12 || 1; min -= pad; max += pad;
+  const X = i => padL + (i / Math.max(values.length - 1, 1)) * pw;
+  const Y = v => padT + (1 - (v - min) / (max - min)) * ph;
+
+  lotBounds.forEach((b, i) => {
+    if (i % 2 === 0) return;
+    g.fillStyle = 'rgba(255,255,255,.025)';
+    g.fillRect(X(b.start), padT, X(b.end) - X(b.start), ph);
+  });
+
+  // 정상 운전 밴드
+  g.fillStyle = 'rgba(61,220,132,.10)';
+  g.fillRect(padL, Y(bandHi), pw, Y(bandLo) - Y(bandHi));
+  g.strokeStyle = 'rgba(61,220,132,.5)'; g.setLineDash([3, 4]); g.lineWidth = 1;
+  [bandHi, bandLo].forEach(v => { g.beginPath(); g.moveTo(padL, Y(v)); g.lineTo(w - padR, Y(v)); g.stroke(); });
+  g.setLineDash([]);
+  g.fillStyle = 'rgba(61,220,132,.8)'; g.font = FONT;
+  g.fillText('정상밴드', 4, Y(bandHi) + 3.5);
+
+  // 데이터
+  g.strokeStyle = color; g.lineWidth = 1.3; g.beginPath();
+  values.forEach((v, i) => i === 0 ? g.moveTo(X(i), Y(v)) : g.lineTo(X(i), Y(v)));
+  g.stroke();
+  const ptR = values.length > 120 ? 1.8 : 2.6;
+  values.forEach((v, i) => {
+    const out = v > bandHi || v < bandLo;
+    g.beginPath(); g.arc(X(i), Y(v), out ? ptR + 1.4 : ptR, 0, Math.PI * 2);
+    g.fillStyle = out ? C.viol : color; g.fill();
+    if (i === selected) {
+      g.beginPath(); g.arc(X(i), Y(v), ptR + 4, 0, Math.PI * 2);
+      g.strokeStyle = C.sel; g.lineWidth = 2; g.stroke();
+    }
+  });
+
+  g.fillStyle = C.text; g.font = FONT;
+  g.fillText(fmtN(max - pad), padL - 46, padT + 8);
+  g.fillText(fmtN(min + pad), padL - 46, padT + ph);
+  g.fillText('웨이퍼 순서 →', w - 90, h - 6);
+  canvas._hit = { X, Y, values, padL, pw };
+}
+
+/* ---------------- FDC 트레이스 (단일 run 실시간 파형) ---------------- */
+export function traceChart(canvas, pts, { sensor, color = '#a78bfa' } = {}) {
+  const { g, w, h } = setup(canvas);
+  const padL = 52, padR = 12, padT = 14, padB = 22;
+  const pw = w - padL - padR, ph = h - padT - padB;
+
+  const bandLo = sensor.base - 3 * sensor.noise, bandHi = sensor.base + 3 * sensor.noise;
+  let min = Math.min(...pts, bandLo), max = Math.max(...pts, bandHi);
+  const pad = (max - min) * 0.08 || 1; min -= pad; max += pad;
+  const X = i => padL + (i / (pts.length - 1)) * pw;
+  const Y = v => padT + (1 - (v - min) / (max - min)) * ph;
+
+  // 정상 공정 구간 밴드
+  g.fillStyle = 'rgba(61,220,132,.08)';
+  g.fillRect(padL, Y(bandHi), pw, Y(bandLo) - Y(bandHi));
+  g.strokeStyle = 'rgba(61,220,132,.45)'; g.setLineDash([3, 4]);
+  [bandHi, bandLo].forEach(v => { g.beginPath(); g.moveTo(padL, Y(v)); g.lineTo(w - padR, Y(v)); g.stroke(); });
+  g.setLineDash([]);
+
+  // 공정 구간 표시 (램프업/정상/램프다운)
+  const seg = (x0, x1, label) => {
+    g.fillStyle = 'rgba(150,162,184,.6)'; g.font = '10px monospace'; g.textAlign = 'center';
+    g.fillText(label, (X(x0) + X(x1)) / 2, padT + 10);
+    g.textAlign = 'left';
+  };
+  seg(0, 8, '램프업'); seg(8, pts.length - 10, '공정 (steady)'); seg(pts.length - 10, pts.length - 1, '종료');
+  g.strokeStyle = C.grid;
+  [8, pts.length - 10].forEach(i => {
+    g.beginPath(); g.moveTo(X(i), padT); g.lineTo(X(i), padT + ph); g.stroke();
+  });
+
+  // 파형
+  g.strokeStyle = color; g.lineWidth = 1.6; g.beginPath();
+  pts.forEach((v, i) => i === 0 ? g.moveTo(X(i), Y(v)) : g.lineTo(X(i), Y(v)));
+  g.stroke();
+
+  g.fillStyle = C.text; g.font = FONT;
+  g.fillText(fmtN(max - pad), padL - 46, padT + 8);
+  g.fillText(fmtN(min + pad), padL - 46, padT + ph);
+  g.fillText('공정 시간 →', w - 84, h - 6);
+}
+
 /* ---------------- 유틸 ---------------- */
 function heat(t) { // 파랑→초록→노랑→빨강
   const stops = [[43, 108, 226], [61, 220, 132], [255, 209, 102], [255, 77, 109]];
