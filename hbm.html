@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HBM 심화 — 메모리 반도체 공정 아카데미</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💾</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+<style>
+  .hbm-controls {
+    position: absolute; top: 16px; right: 16px; z-index: 5;
+    background: rgba(15,20,32,.9); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 16px; font-size: 12.5px;
+    display: flex; flex-direction: column; gap: 10px; min-width: 200px;
+  }
+  .hbm-controls label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 600; }
+  .hbm-controls input[type=range] { flex: 1; accent-color: var(--accent); }
+  .hbm-controls input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+  .gen-table td:first-child { white-space: nowrap; }
+</style>
+</head>
+<body>
+  <header class="topnav">
+    <a class="brand" href="index.html"><span class="logo-dot"></span>메모리 반도체 <em>공정 아카데미</em></a>
+    <nav></nav>
+  </header>
+
+  <main class="hbm-layout" style="--pc:#ff5a2a">
+    <section class="viewport-wrap">
+      <div id="viewport"></div>
+      <div class="viewport-hud">
+        <div class="hud-title">HBM 심화 학습<small>High Bandwidth Memory — TSV · 적층 · MR-MUF · 2.5D</small></div>
+        <div class="chip" id="hud-chip"><span class="dot" style="background:#ff5a2a"></span><span id="hud-chip-text">부품을 클릭하면 설명이 표시됩니다</span></div>
+      </div>
+      <div class="hbm-controls">
+        <label>🔍 분해도 <input type="range" id="explode" min="0" max="100" value="0"></label>
+        <label><input type="checkbox" id="cutaway"> 단면 보기 (몰드 절개)</label>
+        <label style="color:var(--dim);font-size:11px">스택: HBM3E 12-Hi (Advanced MR-MUF)</label>
+      </div>
+      <div id="part-tip"></div>
+      <div class="step-player" id="step-player">
+        <div class="sp-row">
+          <button class="icon-btn" id="sp-prev">◀</button>
+          <button class="icon-btn" id="sp-play">▶</button>
+          <button class="icon-btn" id="sp-next">▶▶</button>
+          <div class="sp-caption"><b id="sp-title"></b><span id="sp-desc"></span></div>
+        </div>
+        <div class="step-dots" id="step-dots"></div>
+      </div>
+      <div class="loading-veil" id="veil"><div class="spinner"></div><span>HBM 3D 모델 로딩 중…</span></div>
+    </section>
+
+    <aside class="info-panel">
+      <div class="tabs" id="tabs">
+        <button data-tab="structure" class="active">구조</button>
+        <button data-tab="generations">세대 비교</button>
+        <button data-tab="bonding">MR-MUF vs 경쟁기술</button>
+        <button data-tab="supply">장비·공급망</button>
+        <button data-tab="defects">불량·품질</button>
+      </div>
+      <div class="tab-body" id="tab-body"></div>
+    </aside>
+  </main>
+
+  <script type="module" src="js/hbm.js"></script>
+</body>
+</html>

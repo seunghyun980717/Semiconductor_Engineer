@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공정 학습 — 메모리 반도체 공정 아카데미</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💾</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+  <header class="topnav">
+    <a class="brand" href="index.html"><span class="logo-dot"></span>메모리 반도체 <em>공정 아카데미</em></a>
+    <nav></nav>
+  </header>
+
+  <div class="proc-strip" id="proc-strip"></div>
+
+  <main class="proc-layout">
+    <section class="viewport-wrap">
+      <div id="viewport"></div>
+      <div class="viewport-hud">
+        <div class="hud-title" id="hud-title"></div>
+        <div class="chip" id="hud-chip"><span class="dot"></span><span id="hud-chip-text">장비를 클릭하면 부품 설명이 표시됩니다</span></div>
+      </div>
+      <div id="part-tip"></div>
+      <div class="step-player" id="step-player">
+        <div class="sp-row">
+          <button class="icon-btn" id="sp-prev" title="이전 단계">◀</button>
+          <button class="icon-btn" id="sp-play" title="자동 재생">▶</button>
+          <button class="icon-btn" id="sp-next" title="다음 단계">▶▶</button>
+          <div class="sp-caption">
+            <b id="sp-title"></b>
+            <span id="sp-desc"></span>
+          </div>
+        </div>
+        <div class="step-dots" id="step-dots"></div>
+      </div>
+      <div class="loading-veil" id="veil"><div class="spinner"></div><span>3D 장비 모델 로딩 중…</span></div>
+    </section>
+
+    <aside class="info-panel">
+      <div class="tabs" id="tabs">
+        <button data-tab="overview" class="active">개요</button>
+        <button data-tab="steps">공정 단계</button>
+        <button data-tab="equipment">장비</button>
+        <button data-tab="parameters">핵심 파라미터</button>
+        <button data-tab="defects">불량·트러블슈팅</button>
+      </div>
+      <div class="tab-body" id="tab-body"></div>
+    </aside>
+  </main>
+
+  <script type="module" src="js/process-page.js"></script>
+</body>
+</html>

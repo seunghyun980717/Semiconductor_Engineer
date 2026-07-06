@@ -1,0 +1,262 @@
+// Spotfire 스타일 캔버스 차트 렌더러 — 관리도/웨이퍼맵/빈맵/박스플롯/히스토그램
+// 모든 차트는 다크 테마, HiDPI 대응, 마킹(선택) 연동을 지원한다.
+
+const C = {
+  bg: '#141a28', grid: '#26314a', axis: '#5c6880', text: '#96a2b8',
+  line: '#58a6ff', point: '#8ab4ff', target: '#3ddc84', limit: '#ff4d6d',
+  spec: '#ffd166', viol: '#ff4d6d', sel: '#ff5a2a',
+};
+const FONT = '11px "Cascadia Code", Consolas, monospace';
+
+function setup(canvas) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = canvas.clientWidth || 300, h = canvas.clientHeight || 200;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const g = canvas.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = C.bg; g.fillRect(0, 0, w, h);
+  return { g, w, h };
+}
+
+/* ---------------- 관리도 (Control Chart) ---------------- */
+// opts: {values, stats:{mean,ucl,lcl}, def:{target,usl,lsl,unit}, violations, selected, color, lotBounds}
+export function controlChart(canvas, opts) {
+  const { g, w, h } = setup(canvas);
+  const { values, stats, def, violations = [], selected = -1, color = C.line, lotBounds = [] } = opts;
+  const padL = 52, padR = 12, padT = 14, padB = 22;
+  const pw = w - padL - padR, ph = h - padT - padB;
+
+  const lines = [stats.ucl, stats.lcl, stats.mean];
+  if (def?.usl !== undefined) lines.push(def.usl, def.lsl);
+  let min = Math.min(...values, ...lines), max = Math.max(...values, ...lines);
+  const pad = (max - min) * 0.08 || 1; min -= pad; max += pad;
+  const X = i => padL + (i / Math.max(values.length - 1, 1)) * pw;
+  const Y = v => padT + (1 - (v - min) / (max - min)) * ph;
+
+  // 로트 경계 배경 밴드
+  lotBounds.forEach((b, i) => {
+    if (i % 2 === 0) return;
+    g.fillStyle = 'rgba(255,255,255,.025)';
+    g.fillRect(X(b.start), padT, X(b.end) - X(b.start), ph);
+  });
+
+  // 그리드
+  g.strokeStyle = C.grid; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (i / 4) * ph;
+    g.beginPath(); g.moveTo(padL, y); g.lineTo(w - padR, y); g.stroke();
+  }
+
+  // 기준선들
+  const refLine = (v, col, label, dash = []) => {
+    g.strokeStyle = col; g.setLineDash(dash); g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(padL, Y(v)); g.lineTo(w - padR, Y(v)); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = col; g.font = FONT;
+    g.fillText(label, 4, Y(v) + 3.5);
+  };
+  if (def?.usl !== undefined) { refLine(def.usl, C.spec, 'USL', [2, 3]); refLine(def.lsl, C.spec, 'LSL', [2, 3]); }
+  refLine(stats.ucl, C.limit, 'UCL', [5, 4]);
+  refLine(stats.lcl, C.limit, 'LCL', [5, 4]);
+  refLine(stats.mean, C.target, 'CL');
+
+  // 데이터 라인
+  g.strokeStyle = color; g.lineWidth = 1.4; g.beginPath();
+  values.forEach((v, i) => i === 0 ? g.moveTo(X(i), Y(v)) : g.lineTo(X(i), Y(v)));
+  g.stroke();
+
+  // 포인트 (위반=빨강, 선택=주황 링)
+  const violSet = new Set(violations.map(v => v.idx));
+  const ptR = values.length > 120 ? 2 : 3;
+  values.forEach((v, i) => {
+    g.beginPath();
+    g.arc(X(i), Y(v), violSet.has(i) ? ptR + 1.5 : ptR, 0, Math.PI * 2);
+    g.fillStyle = violSet.has(i) ? C.viol : color;
+    g.fill();
+    if (i === selected) {
+      g.beginPath(); g.arc(X(i), Y(v), ptR + 4, 0, Math.PI * 2);
+      g.strokeStyle = C.sel; g.lineWidth = 2; g.stroke();
+    }
+  });
+
+  // 축 라벨
+  g.fillStyle = C.text; g.font = FONT;
+  g.fillText(fmtN(max - pad), padL - 46, padT + 8);
+  g.fillText(fmtN(min + pad), padL - 46, padT + ph);
+  g.fillText('웨이퍼 순서 →', w - 90, h - 6);
+
+  // 히트 테스트 정보 저장
+  canvas._hit = { X, Y, values, padL, pw };
+}
+
+// 관리도 클릭 → 웨이퍼 인덱스 (없으면 -1)
+export function chartHitTest(canvas, e) {
+  const hit = canvas._hit;
+  if (!hit) return -1;
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const i = Math.round(((x - hit.padL) / hit.pw) * (hit.values.length - 1));
+  return i >= 0 && i < hit.values.length ? i : -1;
+}
+
+/* ---------------- 웨이퍼 사이트 맵 (파라미터 컬러맵) ---------------- */
+export function siteMap(canvas, sites, values, { def, title = '' } = {}) {
+  const { g, w, h } = setup(canvas);
+  const cx = w / 2, cy = h / 2 + 4, R = Math.min(w, h) / 2 - 22;
+
+  // 웨이퍼 원판
+  g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2);
+  g.fillStyle = '#1a2234'; g.fill();
+  g.strokeStyle = C.axis; g.lineWidth = 1.5; g.stroke();
+  // 노치
+  g.beginPath(); g.arc(cx, cy + R, 5, 0, Math.PI * 2);
+  g.fillStyle = C.bg; g.fill();
+
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || 1;
+  sites.forEach((s, i) => {
+    const t = (values[i] - min) / span;
+    g.beginPath();
+    g.arc(cx + s.x * R, cy + s.y * R, Math.max(9, R * 0.13), 0, Math.PI * 2);
+    g.fillStyle = heat(t); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,.4)'; g.stroke();
+    g.fillStyle = '#0b0e14'; g.font = 'bold 9px monospace'; g.textAlign = 'center';
+    g.fillText(values[i].toFixed(def?.digits > 1 ? 1 : def?.digits ?? 1), cx + s.x * R, cy + s.y * R + 3);
+  });
+  g.textAlign = 'left';
+
+  // 컬러 스케일
+  for (let i = 0; i < 60; i++) {
+    g.fillStyle = heat(i / 59);
+    g.fillRect(w - 16, h - 20 - i * ((h - 40) / 60), 8, (h - 40) / 60 + 1);
+  }
+  g.fillStyle = C.text; g.font = FONT;
+  g.fillText(fmtN(max), w - 44, 18);
+  g.fillText(fmtN(min), w - 44, h - 8);
+  if (title) { g.fillStyle = C.text; g.fillText(title, 8, 14); }
+}
+
+/* ---------------- 빈맵 (Pass/Fail) ---------------- */
+export function binMap(canvas, grid, { pattern = '' } = {}) {
+  const { g, w, h } = setup(canvas);
+  const N = grid.length;
+  const cell = Math.min(w - 20, h - 26) / N;
+  const ox = (w - cell * N) / 2, oy = (h - cell * N) / 2 + 4;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const v = grid[y][x];
+    if (v < 0) continue;
+    g.fillStyle = v === 1 ? '#2f9e5f' : '#ff4d6d';
+    g.fillRect(ox + x * cell + 0.5, oy + y * cell + 0.5, cell - 1, cell - 1);
+  }
+  const flat = grid.flat().filter(v => v >= 0);
+  const y = (100 * flat.filter(v => v === 1).length / flat.length).toFixed(1);
+  g.fillStyle = C.text; g.font = FONT;
+  g.fillText(`Yield ${y}%  ${pattern && pattern !== 'none' ? '· 패턴: ' + pattern : ''}`, 8, 14);
+}
+
+/* ---------------- 박스플롯 (로트별) ---------------- */
+export function boxPlot(canvas, groups, { def, stats, color = C.line } = {}) {
+  const { g, w, h } = setup(canvas);
+  const padL = 52, padR = 10, padT = 12, padB = 30;
+  const pw = w - padL - padR, ph = h - padT - padB;
+
+  const all = groups.flatMap(gr => gr.values);
+  let min = Math.min(...all), max = Math.max(...all);
+  const pad = (max - min) * 0.1 || 1; min -= pad; max += pad;
+  const Y = v => padT + (1 - (v - min) / (max - min)) * ph;
+  const bw = pw / groups.length;
+
+  g.strokeStyle = C.grid;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (i / 4) * ph;
+    g.beginPath(); g.moveTo(padL, y); g.lineTo(w - padR, y); g.stroke();
+  }
+  if (stats) {
+    g.strokeStyle = C.target; g.setLineDash([4, 4]);
+    g.beginPath(); g.moveTo(padL, Y(stats.mean)); g.lineTo(w - padR, Y(stats.mean)); g.stroke();
+    g.setLineDash([]);
+  }
+
+  groups.forEach((gr, i) => {
+    const v = [...gr.values].sort((a, b) => a - b);
+    const q = p => v[Math.floor((v.length - 1) * p)];
+    const [q1, q2, q3] = [q(0.25), q(0.5), q(0.75)];
+    const iqr = q3 - q1;
+    const lo = Math.max(v[0], q1 - 1.5 * iqr), hi = Math.min(v[v.length - 1], q3 + 1.5 * iqr);
+    const x = padL + i * bw + bw / 2, bxw = Math.min(bw * 0.5, 26);
+
+    g.strokeStyle = gr.highlight ? C.sel : C.axis; g.lineWidth = gr.highlight ? 2 : 1;
+    g.beginPath(); g.moveTo(x, Y(lo)); g.lineTo(x, Y(q1)); g.moveTo(x, Y(q3)); g.lineTo(x, Y(hi)); g.stroke();
+    g.fillStyle = gr.highlight ? 'rgba(255,90,42,.35)' : 'rgba(88,166,255,.25)';
+    g.fillRect(x - bxw / 2, Y(q3), bxw, Y(q1) - Y(q3));
+    g.strokeRect(x - bxw / 2, Y(q3), bxw, Y(q1) - Y(q3));
+    g.strokeStyle = gr.highlight ? C.sel : color; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(x - bxw / 2, Y(q2)); g.lineTo(x + bxw / 2, Y(q2)); g.stroke();
+    // 아웃라이어
+    g.fillStyle = C.viol;
+    v.filter(x2 => x2 < lo || x2 > hi).forEach(x2 => {
+      g.beginPath(); g.arc(x, Y(x2), 2, 0, Math.PI * 2); g.fill();
+    });
+    g.fillStyle = C.text; g.font = '10px monospace'; g.textAlign = 'center';
+    g.fillText(gr.label.replace('LOT-', ''), x, h - 12);
+  });
+  g.textAlign = 'left';
+  g.fillStyle = C.text; g.font = FONT;
+  g.fillText(fmtN(max - pad), padL - 46, padT + 8);
+  g.fillText(fmtN(min + pad), padL - 46, padT + ph);
+}
+
+/* ---------------- 히스토그램 ---------------- */
+export function histogram(canvas, values, { def, stats, bins = 24, color = C.line } = {}) {
+  const { g, w, h } = setup(canvas);
+  const padL = 12, padR = 12, padT = 12, padB = 24;
+  const pw = w - padL - padR, ph = h - padT - padB;
+
+  let min = Math.min(...values), max = Math.max(...values);
+  if (def?.lsl !== undefined) { min = Math.min(min, def.lsl); max = Math.max(max, def.usl); }
+  const span = max - min || 1;
+  min -= span * 0.05; max += span * 0.05;
+  const counts = new Array(bins).fill(0);
+  values.forEach(v => {
+    const b = Math.min(bins - 1, Math.max(0, Math.floor(((v - min) / (max - min)) * bins)));
+    counts[b]++;
+  });
+  const maxC = Math.max(...counts);
+  const X = v => padL + ((v - min) / (max - min)) * pw;
+
+  counts.forEach((c, i) => {
+    const x0 = padL + (i / bins) * pw;
+    g.fillStyle = 'rgba(88,166,255,.55)';
+    g.fillRect(x0 + 1, padT + ph * (1 - c / maxC), pw / bins - 2, ph * (c / maxC));
+  });
+
+  const vline = (v, col, label) => {
+    if (v === undefined) return;
+    g.strokeStyle = col; g.setLineDash([4, 3]); g.lineWidth = 1.4;
+    g.beginPath(); g.moveTo(X(v), padT); g.lineTo(X(v), padT + ph); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = col; g.font = FONT; g.textAlign = 'center';
+    g.fillText(label, X(v), padT + ph + 14);
+    g.textAlign = 'left';
+  };
+  vline(def?.lsl, C.spec, 'LSL');
+  vline(def?.usl, C.spec, 'USL');
+  vline(def?.target, C.target, 'T');
+  if (stats) vline(stats.allMean, '#8ab4ff', 'x̄');
+}
+
+/* ---------------- 유틸 ---------------- */
+function heat(t) { // 파랑→초록→노랑→빨강
+  const stops = [[43, 108, 226], [61, 220, 132], [255, 209, 102], [255, 77, 109]];
+  const x = Math.max(0, Math.min(0.9999, t)) * (stops.length - 1);
+  const i = Math.floor(x), f = x - i;
+  const a = stops[i], b = stops[i + 1];
+  return `rgb(${a.map((c, k) => Math.round(c + (b[k] - c) * f)).join(',')})`;
+}
+function fmtN(v) {
+  const a = Math.abs(v);
+  if (a >= 1000) return v.toFixed(0);
+  if (a >= 10) return v.toFixed(1);
+  if (a >= 0.1) return v.toFixed(2);
+  return v.toFixed(4);
+}

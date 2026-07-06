@@ -1,0 +1,15 @@
+{
+  "name": "semiconductor-process-academy",
+  "version": "1.0.0",
+  "description": "메모리 반도체 공정 아카데미 — 웨이퍼에서 HBM까지 (3D 학습 + Spotfire 분석 실습)",
+  "type": "module",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "dependencies": {
+    "three": "^0.166.1"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.3.0"
+  }
+}

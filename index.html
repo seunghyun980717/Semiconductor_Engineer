@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>메모리 반도체 공정 아카데미 — 웨이퍼에서 HBM까지</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💾</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+  <header class="topnav">
+    <a class="brand" href="index.html"><span class="logo-dot"></span>메모리 반도체 <em>공정 아카데미</em></a>
+    <nav></nav>
+  </header>
+
+  <section class="hero">
+    <div id="hero-canvas"></div>
+    <div class="hero-overlay">
+      <h1>웨이퍼에서 <em>HBM</em>까지,<br>메모리 반도체 전 공정을 3D로 배운다</h1>
+      <p class="sub">
+        8대 공정의 원리와 설비를 인터랙티브 3D로 탐험하고,
+        Spotfire 분석실에서 실제 공정 데이터로 이상을 감지·해결하는 실습형 학습 서비스입니다.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="process.html?id=wafer">공정 여정 시작하기 →</a>
+        <a class="btn" href="hbm.html">★ HBM 심화 학습</a>
+        <a class="btn" href="spotfire.html">📊 Spotfire 분석실</a>
+      </div>
+    </div>
+    <div id="hero-tooltip"></div>
+    <div class="hero-hint">🖱️ 드래그로 회전 · 스크롤로 줌 · 공정 스테이션을 클릭하면 상세 페이지로 이동합니다</div>
+  </section>
+
+  <section class="section">
+    <h2>8대 공정 한눈에 보기</h2>
+    <p class="section-sub">각 카드를 클릭하면 해당 공정의 3D 설비와 상세 학습 자료로 이동합니다.</p>
+    <div class="grid-cards" id="proc-cards"></div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="card" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;border-color:var(--accent)">
+      <div style="flex:1;min-width:280px">
+        <h2 style="color:var(--accent)">📊 Spotfire 데이터 분석 실습실</h2>
+        <p class="section-sub" style="margin-bottom:12px">
+          실제 팹처럼 Lot → Wafer → Site 계층의 계측 데이터가 실시간 생성됩니다.
+          SPC 관리도·웨이퍼 빈맵·박스플롯으로 이상을 탐지하고,
+          공정별 실제 불량 사례를 퀴즈로 풀며 엔지니어의 판단 과정을 훈련하세요.
+        </p>
+        <a class="btn primary" href="spotfire.html">분석실 입장 →</a>
+      </div>
+      <div style="flex:1;min-width:260px;font-size:13px;color:var(--muted)">
+        <b style="color:var(--text)">학습 흐름</b>
+        <ol style="padding-left:20px;margin-top:8px;line-height:2">
+          <li>공정 선택 → 계측 데이터 대시보드 관찰</li>
+          <li>관리도에서 Western Electric Rule 위반 탐지</li>
+          <li>이상 케이스 시나리오: 원인 추정 퀴즈</li>
+          <li>조치 방법 확인 및 데이터 정상화 검증</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    메모리 반도체 공정 아카데미 · 교육용 시뮬레이션 (데이터는 실제 공정을 모사한 가상 데이터입니다) · Three.js 기반
+  </footer>
+
+  <script type="module" src="js/home.js"></script>
+</body>
+</html>
