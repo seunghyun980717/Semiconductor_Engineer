@@ -2,8 +2,8 @@
 // export 계약: camera, content, build3D(ctx) -> { group, setStep(i), tick(t,dt) }
 import * as THREE from 'three';
 import {
-  MAT, pick, shadow, makeWafer, makeCabinet, makeLoadPort, makeRobotArm,
-  makeBeam, makeLabel, makeSignalTower, makePipe,
+  MAT, pick, shadow, makeWafer, makeBareWafer, makeCabinet, makeLoadPort, makeRobotArm,
+  makeBeam, makeLabel, makeSignalTower, makePipe, makeHose, makeScreenPanel,
 } from '../lib/equip-kit.js';
 
 export const camera = { pos: [8, 6, 11], target: [0, 1.3, 0] };
@@ -22,6 +22,8 @@ export const content = {
     'Wafer Bin Map의 공간적 실패 패턴(edge, center, ring, donut, loc, scratch, random)은 그 자체로 공정 이상을 진단하는 지문(fingerprint) 역할을 합니다',
     '프로버(TEL/SEMES)와 테스터(Advantest)는 서로 다른 장비이며, 광학 정렬로 얼라인 후 접촉해 신호를 주고받는 구조로 연동됩니다',
     '다이 단위 스텝 인덱싱 속도와 병렬 테스트(멀티 DUT) 수가 EDS 테스트 처리량(throughput)을 좌우합니다',
+    '프로버는 진동 차단용 화강암 베이스와 공압 아이솔레이터(에어 마운트) 위에 놓이고, 로더 곁의 프리얼라이너가 척에 오르기 전 웨이퍼 노치 각도를 미리 보정합니다',
+    '테스트 헤드는 매니퓰레이터 암에 매달려 있다가 압축공기로 도킹되며, 포고핀 타워가 테스트헤드와 프로브카드 사이 신호 경로를 최단화합니다',
   ],
   hbmNote:
     'HBM/DRAM은 셀 배열이 방대하기 때문에 EDS 초반 단계인 웨이퍼 번인(WBI)과 레이저 퓨즈 리페어가 로직 반도체보다 훨씬 광범위하게 활용되어 수율을 끌어올립니다. ' +
@@ -107,17 +109,46 @@ export function build3D(ctx) {
   loader.position.set(-5.3, 0, 0.8);
 
   const loadPort = makeLoadPort();
-  pick(loadPort, '로드포트 & FOUP', '25장 웨이퍼가 담긴 FOUP이 OHT(천장 반송)로 도착해 거치되는 곳. 여기서 웨이퍼가 한 장씩 반출됩니다.');
+  pick(loadPort, '로드포트 #1 & FOUP', '25장 웨이퍼가 담긴 FOUP이 OHT(천장 반송)로 도착해 거치되는 곳. 여기서 웨이퍼가 한 장씩 반출됩니다.');
   loader.add(loadPort);
+
+  const loadPort2 = makeLoadPort();
+  loadPort2.position.set(-1.35, 0, -0.95);
+  pick(loadPort2, '로드포트 #2', 'FOUP 로드포트는 통상 2~4개가 나란히 배치되어 여러 웨이퍼 카세트를 동시에 대기시키며 처리량을 높입니다.');
+  loader.add(loadPort2);
 
   const robot = makeRobotArm({ reach: 1.3 });
   robot.position.set(1.4, 0, -0.5);
-  pick(robot, '웨이퍼 이송 로봇', 'FOUP에서 웨이퍼를 꺼내 프로버의 웨이퍼 척으로 반송합니다.');
+  pick(robot, '웨이퍼 이송 로봇', 'FOUP에서 웨이퍼를 꺼내 프리얼라이너를 거쳐 프로버의 웨이퍼 척으로 반송하는 SCARA형 진공 이송 로봇.');
   loader.add(robot);
 
   const carriedWafer = makeWafer(0.32, { tint: '#7c6cff', thickness: 0.02, dieGrid: 8 });
   carriedWafer.position.set(0, 0.02, 0);
   robot.userData.endEffector.add(carriedWafer);
+
+  // 프리얼라이너: 로더-척 사이 경로에 위치한 소형 회전 스테이지. 저속 회전+광센서로 노치 각도를 보정
+  const prealigner = new THREE.Group();
+  const preColumn = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.72, 16), MAT.paint(0xc8cfdc));
+  preColumn.position.y = 0.36;
+  prealigner.add(shadow(preColumn));
+  const preTable = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.06, 32), MAT.steel(0x8a94a8));
+  preTable.position.y = 0.75;
+  prealigner.add(shadow(preTable));
+  const prePlatter = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.02, 32), MAT.dark(0x2e3648));
+  prePlatter.position.y = 0.79;
+  prealigner.add(prePlatter);
+  const preWafer = makeBareWafer(0.24, 0.015);
+  preWafer.position.y = 0.81;
+  prealigner.add(preWafer);
+  const preCover = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.38, 0.38, 0.3, 32, 1, true),
+    MAT.glass(0xcfe8ff, 0.2));
+  preCover.position.y = 0.9;
+  prealigner.add(preCover);
+  prealigner.position.set(0.6, 0, -0.15);
+  pick(prealigner, '프리얼라이너 (Pre-aligner)', '척에 오르기 전, 웨이퍼를 얹고 저속 회전시키며 레이저/광센서로 노치(notch) 위치를 검출해 각도를 보정하는 소형 턴테이블. 투명 아크릴 커버로 덮여 있습니다.');
+  loader.add(prealigner);
+  prealigner.userData.wafer = preWafer;
 
   group.add(loader);
 
@@ -129,8 +160,29 @@ export function build3D(ctx) {
   pick(proberBody, '프로버 본체 (TEL Precio XL)', '웨이퍼를 자동 로딩·정렬·다이 단위 인덱싱하며 프로브 카드와 접촉시키는 프로빙 플랫폼.');
   prober.add(proberBody);
 
+  // 화강암 베이스 — 짙은 회색~검정, 미세 반점 텍스처, 진동 차단용 강성 프레임
+  const graniteMat = new THREE.MeshStandardMaterial({ color: 0x24262c, metalness: 0.08, roughness: 0.85 });
+  const graniteBase = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.34, 1.95), graniteMat);
+  graniteBase.position.set(0, 0.17, 0);
+  pick(graniteBase, '화강암 베이스 (Granite Base)', '진동을 차단하고 전체 구조를 지지하는 화강암 블록. 짙은 회색~검정의 미세 반점 텍스처를 가지며 정밀 측정의 기준이 되는 강성 프레임입니다.');
+  prober.add(shadow(graniteBase));
+
+  // 에어 마운트(공압 아이솔레이터) — 검은 고무 + 실린더 4개, 건물 진동으로부터 베이스를 격리
+  const airMounts = new THREE.Group();
+  [[0.78, 0.78], [0.78, -0.78], [-0.78, 0.78], [-0.78, -0.78]].forEach(([x, z]) => {
+    const rubber = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.14, 16), MAT.dark(0x14161c));
+    rubber.position.set(x, 0.07, z);
+    airMounts.add(rubber);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 16), MAT.steel(0x9aa4b5));
+    cap.position.set(x, 0.15, z);
+    airMounts.add(cap);
+  });
+  pick(airMounts, '에어 마운트 (공압 아이솔레이터)', '건물 바닥의 미세 진동이 프로버로 전달되지 않도록 화강암 베이스를 공중에서 지지하는 공압식 방진 다리. 통상 4~6개가 배치됩니다.');
+  prober.add(shadow(airMounts));
+
   const stageBase = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.14, 1.5), MAT.steel(0x6b7488));
   stageBase.position.set(0, 0.55, 0);
+  pick(stageBase, 'XYθ 스테이지', '리니어 모터 레일 2단(X·Y축)과 회전축(θ)이 적층된 정밀 위치결정 스테이지. 은색 스테인리스/알루미늄 재질로 척을 다이 단위로 이동시킵니다.');
   prober.add(shadow(stageBase));
 
   // 척+웨이퍼: 인덱싱/얼라인/콘택에 따라 위치가 변하는 스테이지
@@ -147,10 +199,18 @@ export function build3D(ctx) {
 
   // 프로브 카드(고정) + 니들 + 테스트헤드
   const probeAssembly = new THREE.Group();
-  const cardPlate = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 32), MAT.dark(0x2a3244));
+  const cardPlate = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 32),
+    new THREE.MeshStandardMaterial({ color: 0x1f7a4d, metalness: 0.2, roughness: 0.55 }));
   cardPlate.position.y = 1.0;
-  pick(cardPlate, 'PCB 프로브 카드', '테스터 신호를 웨이퍼까지 전달하는 인터페이스 기판. 수백~수천 개의 미세 니들이 부착됩니다.');
+  pick(cardPlate, 'PCB 프로브 카드', '테스터 신호를 웨이퍼까지 전달하는 원형 녹색 PCB 기판(지름 200~500mm). 하면에 수백~수만 개의 미세 니들이 하향 돌출되어 있습니다.');
   probeAssembly.add(shadow(cardPlate));
+
+  // 인서트 링 — 스테인리스 링이 프로브카드 가장자리를 감싸 상판 개구부에 정렬핀으로 고정
+  const insertRing = new THREE.Mesh(new THREE.TorusGeometry(0.53, 0.025, 10, 40), MAT.steel(0xc7ccd6));
+  insertRing.rotation.x = Math.PI / 2;
+  insertRing.position.y = 1.0;
+  pick(insertRing, '인서트 링 (Insert Ring)', '스테인리스 재질의 링으로 프로브 카드 가장자리를 감싸, 척 바로 위 상판(탑 플레이트) 중앙 원형 개구부에 정렬핀으로 고정합니다.');
+  probeAssembly.add(insertRing);
 
   const needles = new THREE.Group();
   const needleMat = MAT.gold();
@@ -167,14 +227,34 @@ export function build3D(ctx) {
   pick(needles, '프로브 니들 (텅스텐/BeCu)', '다이의 본딩 패드에 물리적으로 접촉해 테스터와 웨이퍼 사이 전기 신호를 중계하는 미세 핀. 재질은 텅스텐·베릴륨코퍼 등.');
   probeAssembly.add(needles);
 
-  const headColumn = makePipe([[0, 1.02, 0], [0, 1.3, 0]], { radius: 0.1, color: 0x828da3 });
+  // 포고핀 타워 — 테스트헤드와 프로브카드 사이 신호 경로를 최단화하는 스프링핀 다발 (금색)
+  const pogoTower = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.08, 24), MAT.gold());
+  pogoTower.position.y = 1.065;
+  pick(pogoTower, '포고핀 타워 (DUT 보드)', '테스트헤드 하단면과 프로브카드 사이에 위치한 얇은 원판형 인터페이스. 스프링핀(포고핀) 다발이 금색으로 반짝이며 신호 경로를 최단화합니다.');
+  probeAssembly.add(pogoTower);
+
+  const headColumn = makePipe([[0, 1.1, 0], [0, 1.3, 0]], { radius: 0.1, color: 0x828da3 });
   probeAssembly.add(headColumn);
   const testHead = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.9), MAT.paint(0xc0c9d8));
   testHead.position.y = 1.55;
-  pick(testHead, 'Advantest 테스트 헤드', '테스터 본체(ATE)와 프로브 카드 사이의 전자 인터페이스. 프로브 카드에서 받은 신호를 테스터로 전달합니다.');
+  pick(testHead, 'Advantest 테스트 헤드', '테스터 본체(ATE)와 프로브 카드 사이의 전자 인터페이스. 가로세로 60~90cm, 무게 200~500kg급 대형 박스로 매니퓰레이터 암에 매달려 있다가 도킹 시 하강해 프로버와 결합합니다.');
   probeAssembly.add(shadow(testHead));
 
   prober.add(probeAssembly);
+
+  // 매니퓰레이터 암 — 테스트헤드를 매달아 회전·승강시켜 프로버 상판에 도킹시키는 관절형 지지 암
+  const manipulatorArm = new THREE.Group();
+  const armPost = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.85, 16), MAT.paint(0xd8c23a));
+  armPost.position.set(0.85, 0.95, 0.62);
+  manipulatorArm.add(shadow(armPost));
+  const armBoom = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.12, 0.16), MAT.paint(0xd8c23a));
+  armBoom.position.set(0.44, 1.55, 0.62);
+  manipulatorArm.add(shadow(armBoom));
+  const armJoint = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.22, 16), MAT.dark(0x39415a));
+  armJoint.position.set(0.03, 1.55, 0.5);
+  manipulatorArm.add(armJoint);
+  pick(manipulatorArm, '매니퓰레이터 암', '테스트 헤드를 매달아 회전·승강시켜 프로버 상판 위에 정확히 도킹시키는 관절형 지지 암. 도킹 시 캠팔로워와 압축공기로 체결됩니다.');
+  prober.add(manipulatorArm);
 
   // 콘택 스파크
   const spark = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.01, 24), MAT.glow(0x22d3ee, 0));
@@ -205,19 +285,26 @@ export function build3D(ctx) {
   const tester = new THREE.Group();
   tester.position.set(3.6, 0, -0.3);
 
-  const testerBody = makeCabinet({ w: 2.2, h: 2.7, d: 1.6, color: 0xcfd6e3, screen: true });
-  pick(testerBody, 'ATE 테스터 캐비닛 (Advantest V93000 HSM)', '프로브 카드가 전달한 전기 신호를 해석해 다이별 양/불량과 등급을 판정하는 고성능 메모리 테스트 시스템 본체.');
+  const testerBody = makeCabinet({ w: 2.2, h: 2.7, d: 1.6, color: 0xf0f2f6, screen: false });
+  pick(testerBody, 'ATE 테스터 캐비닛 (Advantest V93000 HSM)', '냉장고 크기의 2~3배에 달하는 대형 캐비닛(폭 1.5~2m, 흰색/라이트그레이 도장 철판 외장). 전면에 다수의 서브랙(카드슬롯) 도어가 있으며, 프로브 카드가 전달한 전기 신호를 해석해 다이별 양/불량과 등급을 판정합니다.');
   tester.add(testerBody);
 
-  // 파형 화면 (보조 스크린)
-  const waveScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.4), MAT.glow(0x58a6ff, 0.7));
-  waveScreen.position.set(0, 2.15, 0.81);
-  tester.add(waveScreen);
+  // 상태 모니터 스크린 (SPC/파형 패널) — makeScreenPanel 사용
+  const statusScreen = makeScreenPanel({ w: 0.62, h: 0.4, accent: '#58a6ff' });
+  statusScreen.position.set(0.55, 2.05, 0.81);
+  pick(statusScreen, '테스터 상태 모니터', '테스트 신호 파형과 장비 가동 상태(RUN/PROCESS OK)를 실시간으로 보여주는 콘솔 화면입니다.');
+  tester.add(statusScreen);
+
+  // SPC 트렌드 스크린 — makeScreenPanel 두 번째 인스턴스
+  const spcScreen = makeScreenPanel({ w: 0.62, h: 0.4, accent: '#3ddc84' });
+  spcScreen.position.set(0.55, 0.7, 0.81);
+  pick(spcScreen, 'SPC 수율 트렌드 모니터', 'Bin1 수율(Yield)과 리페어 성공률 등 통계적 공정관리(SPC) 지표의 추세를 표시하는 보조 화면.');
+  tester.add(spcScreen);
 
   // 빈맵 화면
-  const binScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0),
+  const binScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.95),
     new THREE.MeshBasicMaterial({ map: binTex, toneMapped: false }));
-  binScreen.position.set(0, 1.15, 0.81);
+  binScreen.position.set(-0.5, 1.4, 0.81);
   pick(binScreen, 'Wafer Bin Map 디스플레이', '다이 좌표별 양/불량(Bin) 판정 결과를 실시간으로 시각화. 실패 패턴(edge/center/ring/loc/random)이 공정 이상 진단의 단서가 됩니다.');
   tester.add(binScreen);
 
@@ -230,8 +317,12 @@ export function build3D(ctx) {
 
   group.add(tester);
 
-  // 캐비닛 간 케이블 연결
-  group.add(makePipe([[-0.3, 1.6, 0], [1.6, 2.2, -0.2], [3.6, 2.15, -0.3]], { radius: 0.045, color: 0x6b7488 }));
+  // 케이블 번들 — 테스트 헤드와 테스터 메인프레임을 잇는 굵은 다심 케이블 뭉치(천장 서스펜션 방식)
+  const cableBundle = makeHose(
+    [[-0.3, 1.55, 0.4], [0.9, 2.7, 0.25], [2.3, 2.75, -0.15], [3.6, 2.25, -0.35]],
+    { radius: 0.09, color: 0x14161c });
+  pick(cableBundle, '케이블 번들 (Cable Bundle)', '테스트 헤드와 테스터 메인프레임을 잇는 굵은 원통형 다심 케이블 뭉치(지름 10~20cm). 검은색 고무/PVC 피복 안에 수백 가닥의 동축·트위스트페어 케이블이 담겨 있으며, 도킹된 테스트헤드의 이동 자유도 확보를 위해 천장 서스펜션 방식으로 배선됩니다.');
+  group.add(cableBundle);
 
   /* ================= 단계 연출 상태 ================= */
   const LIFT = 0.055;
@@ -355,12 +446,18 @@ export function build3D(ctx) {
         laserSpark.material.emissiveIntensity *= 0.85;
       }
 
-      // 상태등, 화면 플리커, 로봇팔, 웨이퍼 회전 등 상시 연출
-      waveScreen.material.emissiveIntensity = 0.5 + Math.sin(t * 5) * 0.35;
+      // 상태등, 로봇팔, 웨이퍼 회전 등 상시 연출
       towerP.userData.setState(testActive ? 'run' : (repairActive ? 'warn' : 'run'));
       towerT.userData.setState('run');
       mainWafer.rotation.y += 0.02 * dt;
       robot.userData.setPose(Math.sin(t * 0.6) * 0.7 - 0.4, Math.sin(t * 0.8) * 0.4 + 0.3, Math.cos(t * 0.7) * 0.5);
+
+      // 프리얼라이너: 대기 중엔 저속, 얼라인 스텝에서는 노치 검출을 위해 빠르게 회전
+      prealigner.userData.wafer.rotation.y += (jitter ? 4.0 : 0.6) * dt;
+
+      // 매니퓰레이터 암/테스트헤드: 도킹된 상태에서도 미세한 호흡감(진동 흡수) 표현
+      manipulatorArm.position.y = Math.sin(t * 1.3) * 0.004;
+      probeAssembly.position.y = Math.sin(t * 1.3 + 1.0) * 0.003;
     },
   };
 }

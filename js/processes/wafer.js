@@ -2,8 +2,9 @@
 // export 계약: camera, content, build3D(ctx) → { group, setStep(i), tick(t, dt) }
 import * as THREE from 'three';
 import {
-  MAT, pick, shadow, makeBareWafer, makeChamber, makePedestal, makeBeam,
+  MAT, pick, shadow, makeBareWafer, makeOpenChamber, makePedestal, makeBeam,
   makeLabel, makeSignalTower, makeParticleStream, makeRobotArm, makeLoadPort,
+  makeGasBox, makeTurboPump, makeHose, makeScreenPanel, makeWaferBoat,
 } from '../lib/equip-kit.js';
 
 export const camera = { pos: [11, 6.5, 13], target: [0, 1.6, 0] };
@@ -60,18 +61,26 @@ export const content = {
 export function build3D(ctx) {
   const group = new THREE.Group();
 
-  /* ================= ① CZ 단결정 성장로 (좌측) ================= */
+  /* ================= ① CZ 단결정 성장로 (좌측, 세로로 긴 절개 구조) ================= */
   const furnace = new THREE.Group();
   furnace.position.set(-5.5, 0, 0);
 
-  const chamber = makeChamber({ r: 1.2, h: 2.6, y: 1.4, color: 0xcfd6e4 });
-  pick(chamber, 'CZ 성장로 챔버', '아르곤 등 불활성 가스로 채운 밀폐 챔버 내부에서 실리콘 단결정을 성장시켜 산소 오염을 막습니다.');
+  const MELT_Y = 0.85, MECH_Y = 3.3, INGOT_MAX = 2.0;
+  const FURN_R = 0.95, FURN_H = 3.05, FURN_Y = 1.62;
+
+  // 절개된 챔버 — 아르곤 분위기 속 내부(도가니·히터·잉곳) 전체 노출
+  const chamber = makeOpenChamber({ r: FURN_R, h: FURN_H, y: FURN_Y, color: 0xcfd6e4, opening: Math.PI * 0.6 });
+  pick(chamber, 'CZ 성장로 챔버 (절개)', '아르곤 등 불활성 가스로 채운 밀폐 챔버 내부에서 실리콘 단결정을 성장시켜 산소 오염을 막습니다. 세로로 긴 구조로 인상되는 잉곳의 전체 길이를 수용합니다.');
   furnace.add(chamber);
 
-  const MELT_Y = 0.8, MECH_Y = 2.55, INGOT_MAX = 1.55;
-
-  // 도가니(회전) 그룹
+  // 흑연 서셉터 — 도가니를 받쳐 지지하는 컵 형태 (도가니와 함께 회전)
   const crucibleGroup = new THREE.Group();
+  const susceptor = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.5, 0.32, 32),
+    MAT.dark(0x161a20));
+  susceptor.position.y = MELT_Y - 0.44;
+  pick(susceptor, '흑연 서셉터 (Graphite Susceptor)', '석영 도가니를 감싸 지지하는 그라파이트(흑연) 지지대입니다. 리서치 공통 모델링 원칙상 그라파이트 부품은 무광 검정으로 표현하며, 도가니와 함께 회전합니다.');
+  crucibleGroup.add(shadow(susceptor));
+
   const crucible = new THREE.Mesh(
     new THREE.CylinderGeometry(0.62, 0.4, 0.55, 32, 1, true),
     MAT.glass(0xfff2d9, 0.4));
@@ -84,13 +93,20 @@ export function build3D(ctx) {
   crucibleGroup.add(meltDisc);
   furnace.add(crucibleGroup);
 
-  // 흑연 히터 (도가니 감싸는 링, 회전하지 않음)
-  const heaterRing = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.09, 12, 32),
-    new THREE.MeshStandardMaterial({ color: 0x2a2422, emissive: 0xff3300, emissiveIntensity: 0.3, metalness: 0.3, roughness: 0.7 }));
-  heaterRing.rotation.x = Math.PI / 2;
-  heaterRing.position.y = MELT_Y - 0.2;
-  pick(heaterRing, '흑연 히터 (Graphite Heater)', '도가니를 감싸는 흑연 발열체로 실리콘 융점 이상까지 가열합니다. 온도 구배를 ±0.1°C 수준으로 정밀 관리해야 결함을 줄일 수 있습니다.');
-  furnace.add(shadow(heaterRing));
+  // 흑연 히터 코일 — 도가니를 감싸는 다단 발열 링(주황 발광), 회전하지 않음
+  const heaterCoil = new THREE.Group();
+  const heaterRings = [];
+  const HEATER_N = 6;
+  for (let i = 0; i < HEATER_N; i++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.06, 12, 32),
+      new THREE.MeshStandardMaterial({ color: 0x2a2422, emissive: 0xff3300, emissiveIntensity: 0.3, metalness: 0.3, roughness: 0.7 }));
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = MELT_Y - 0.55 + i * 0.18;
+    heaterRings.push(ring);
+    heaterCoil.add(shadow(ring));
+  }
+  pick(heaterCoil, '흑연 히터 코일 (Graphite Heater)', '도가니를 감싸는 다단 흑연 발열 코일로 실리콘 융점 이상까지 가열합니다. 온도 구배를 ±0.1°C 수준으로 정밀 관리해야 결함(슬립 전위 등)을 줄일 수 있습니다.');
+  furnace.add(heaterCoil);
 
   // 인상 메커니즘 (풀러 상단 모터 하우징)
   const pullMech = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.7), MAT.steel(0x828da3));
@@ -98,10 +114,14 @@ export function build3D(ctx) {
   pick(pullMech, '인상 메커니즘 (CZ Puller)', '씨드를 정밀 회전·인상시키는 구동부입니다. 인상속도(0.3~1.0mm/min)와 회전으로 잉곳 직경과 결함 밀도를 제어합니다.');
   furnace.add(shadow(pullMech));
 
-  // 인상 축(가변 길이) + 씨드 + 잉곳(가변 길이, 반대 방향 회전)
+  // 인상 케이블 + 시드척 + 씨드 + 잉곳(가변 길이, 반대 방향 회전)
   const ingotGroup = new THREE.Group();
-  const shaftMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 12), MAT.steel(0x9aa4b5));
-  ingotGroup.add(shaftMesh);
+  const cableMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 12), MAT.steel(0xc4cbd8));
+  pick(cableMesh, '인상 케이블 (Pulling Cable)', '시드척을 매달아 일정 속도로 끌어올리는 케이블입니다. 인상속도(0.3~1.0mm/min)가 잉곳 직경과 V/G비를 결정하는 핵심 변수입니다.');
+  ingotGroup.add(cableMesh);
+  const seedChuck = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.1, 0.09, 16), MAT.steel(0x6b7488));
+  pick(seedChuck, '시드척 (Seed Chuck)', '씨드 결정을 물어 고정하고 케이블과 함께 회전·인상시키는 척입니다. 도가니와 반대 방향으로 회전해 용융액 대류를 제어합니다.');
+  ingotGroup.add(shadow(seedChuck));
   const seedMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.12, 16), MAT.dark(0x39415a));
   pick(seedMesh, '씨드 (Seed Crystal)', '원하는 결정 방향을 가진 종자 결정. 용융액에 담근 뒤 서서히 인상하며 그 결정 구조를 그대로 이어받아 잉곳이 자랍니다.');
   ingotGroup.add(seedMesh);
@@ -117,14 +137,41 @@ export function build3D(ctx) {
     ingotMesh.position.y = MELT_Y + l / 2;
     const seedY = MELT_Y + l + 0.06;
     seedMesh.position.y = seedY;
-    const shaftLen = Math.max(MECH_Y - seedY, 0.05);
-    shaftMesh.scale.y = shaftLen;
-    shaftMesh.position.y = seedY + shaftLen / 2;
+    seedChuck.position.y = seedY + 0.1;
+    const cableLen = Math.max(MECH_Y - (seedY + 0.14), 0.05);
+    cableMesh.scale.y = cableLen;
+    cableMesh.position.y = seedY + 0.14 + cableLen / 2;
   }
   updateIngot(0);
 
+  // 아르곤 가스박스 — 챔버 내부를 불활성 분위기로 유지하는 공급 계통
+  const argonBox = makeGasBox({ w: 0.55, h: 1.1, lines: 2 });
+  argonBox.scale.setScalar(0.8);
+  argonBox.position.set(-1.5, 0, -0.5);
+  pick(argonBox, '아르곤 가스박스 (Ar Supply)', '챔버 내부를 아르곤 등 불활성 가스 분위기로 유지해 용융 실리콘의 산소·불순물 오염을 막는 가스 공급 계통입니다.');
+  furnace.add(argonBox);
+
+  // 진공 배기 터보펌프 — 성장 전 챔버 퍼지/진공 배기
+  const furnacePump = makeTurboPump({ r: 0.26, h: 0.46 });
+  furnacePump.rotation.z = Math.PI / 2;
+  furnacePump.position.set(1.35, 0.35, -0.3);
+  pick(furnacePump, '진공 배기 터보펌프', '성장 시작 전 챔버를 진공 배기하고 아르곤으로 재충전(퍼지)하는 데 쓰이는 터보 분자 펌프입니다.');
+  furnace.add(furnacePump);
+  furnace.add(makeHose([[FURN_R, 0.35, -0.3], [1.0, 0.35, -0.3], [1.35, 0.35, -0.3]], { radius: 0.05, color: 0x4a5268 }));
+
+  // SCADA 온도 제어 스크린
+  const furnaceScreen = makeScreenPanel({ w: 0.6, h: 0.4, accent: '#ff8a3c' });
+  furnaceScreen.position.set(-1.5, 2.15, 0.05);
+  furnaceScreen.rotation.y = Math.PI * 0.12;
+  pick(furnaceScreen, '온도 제어 스크린 (SCADA)', '열전대로 측정한 도가니 온도를 SCADA로 로깅하며 ±0.1°C 수준으로 구배를 관리하는 공정 모니터입니다.');
+  furnace.add(furnaceScreen);
+
+  const furnaceTower = makeSignalTower();
+  furnaceTower.position.set(1.3, 0, 0.85);
+  furnace.add(furnaceTower);
+
   const furnaceLabel = makeLabel('CZ 단결정 성장로', { color: '#8ab4ff', size: 0.42 });
-  furnaceLabel.position.set(0, 3.4, 0);
+  furnaceLabel.position.set(0, MECH_Y + 0.55, 0);
   furnace.add(furnaceLabel);
   group.add(furnace);
 
@@ -162,34 +209,50 @@ export function build3D(ctx) {
   pick(ingotOnSaw, '절단 대상 잉곳', '성장로에서 옮겨진 잉곳이 와이어 웹을 통과하며 얇은 웨이퍼들로 잘려나갑니다.');
   saw.add(shadow(ingotOnSaw));
 
-  // 슬라이스된 웨이퍼 스택 (진행에 따라 하나씩 드러남)
-  const sliceWafers = [];
-  const SLICE_N = 9;
-  for (let i = 0; i < SLICE_N; i++) {
-    const w = makeBareWafer(0.42, 0.035);
-    w.position.set(1.55, 0.82 + i * 0.045, 0);
-    w.visible = false;
-    saw.add(w);
-    sliceWafers.push(w);
-  }
-  pick(sliceWafers[0], '슬라이스된 웨이퍼', '와이어 쏘를 통과해 낱장으로 분리된 웨이퍼입니다. 이후 랩핑·식각·폴리싱을 거쳐 거울면이 됩니다.');
+  // 와이어 격자 — 잉곳 둘레를 감싸는 다이아몬드 와이어 그물(와이어 소의 절삭면을 시각화)
+  const wireMeshNet = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.56, 0.56, 2.05, 28, 10, true),
+    new THREE.MeshBasicMaterial({ color: 0xcfe6ff, wireframe: true, transparent: true, opacity: 0.55, toneMapped: false }));
+  wireMeshNet.rotation.z = Math.PI / 2;
+  wireMeshNet.position.set(0, 2.0, 0);
+  pick(wireMeshNet, '와이어 격자 (잉곳을 감는 와이어)', '다이아몬드 와이어가 잉곳 둘레를 그물처럼 감싸며 고속 왕복해 수백 장의 웨이퍼를 동시에 절단합니다. 와이어 장력 편차는 두께 산포(TTV)의 주원인입니다.');
+  saw.add(wireMeshNet);
+
+  // 냉각/슬러리 공급 호스
+  saw.add(makeHose([[-1.4, 1.9, 0.75], [-0.6, 1.55, 0.65], [0, 1.35, 0.6]], { radius: 0.045, color: 0x39415a }));
+
+  // 석영 웨이퍼 보트 — 슬라이스된 웨이퍼를 담아 다음 공정으로 이송하는 지그
+  const sliceBoat = makeWaferBoat({ slots: 9, waferR: 0.42, gap: 0.05 });
+  sliceBoat.position.set(1.65, 0.78, 0);
+  pick(sliceBoat, '석영 웨이퍼 보트 (Quartz Boat)', '와이어 쏘를 통과해 낱장으로 분리된 웨이퍼를 석영 지그에 세워 담아 다음 공정(랩핑)으로 이송합니다. 이후 랩핑·식각·폴리싱을 거쳐 거울면이 됩니다.');
+  saw.add(sliceBoat);
+  const sliceWafers = sliceBoat.userData.wafers;
+  const SLICE_N = sliceWafers.length;
+  sliceWafers.forEach(w => { w.visible = false; });
 
   const sawLabel = makeLabel('와이어 소 (슬라이싱)', { color: '#8ab4ff', size: 0.38 });
   sawLabel.position.set(0, 3.0, 0);
   saw.add(sawLabel);
   group.add(saw);
 
-  /* ================= ③ 랩핑/그라인딩 + 습식 식각 (표면처리) ================= */
+  /* ================= ③ 양면 그라인더(회전 플래튼) + 습식 식각 (표면처리) ================= */
   const prep = new THREE.Group();
   prep.position.set(0.4, 0, 0);
 
   const prepPedestal = makePedestal({ r: 0.5, y: 0.75 });
   prep.add(prepPedestal);
 
+  // 상부 플래튼(휠) — 웨이퍼 위에서 아래로 눌러 회전
   const grindWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.14, 40), MAT.dark(0x39415a));
-  grindWheel.position.set(-0.9, 1.55, 0);
-  pick(grindWheel, '양면 그라인더 휠 (Double-Side Grinder)', '슬라이싱 직후 표면의 톱 자국과 손상층을 제거하고 두께 균일도·에지 라운딩을 수행합니다.');
+  grindWheel.position.set(-0.9, 2.05, 0);
+  pick(grindWheel, '상부 그라인더 플래튼 (Double-Side Grinder)', '웨이퍼 위쪽에서 회전하며 압력을 가하는 연마 원반입니다. 슬라이싱 직후 표면의 톱 자국과 손상층을 제거하고 두께 균일도·에지 라운딩을 수행합니다.');
   prep.add(shadow(grindWheel));
+
+  // 하부 플래튼 — 웨이퍼를 사이에 두고 반대 방향으로 회전 (양면 동시 연마)
+  const grindWheelBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.14, 40), MAT.steel(0x9aa4b5));
+  grindWheelBottom.position.set(-0.9, 1.35, 0);
+  pick(grindWheelBottom, '하부 그라인더 플래튼', '상부 플래튼과 웨이퍼를 사이에 두고 마주보며 반대 방향으로 회전해, 웨이퍼 양면을 동시에 연마하는 은색 스테인리스 원반입니다.');
+  prep.add(shadow(grindWheelBottom));
 
   const etchTank = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.55, 1.0), MAT.steel(0x6b7488));
   etchTank.position.set(0.9, 0.42, 0);
@@ -201,8 +264,8 @@ export function build3D(ctx) {
   prep.add(etchLiquid);
 
   const waferPrep = makeBareWafer(0.42, 0.03);
-  waferPrep.position.set(-0.9, 1.85, 0);
-  pick(waferPrep, '표면처리 중인 웨이퍼', '그라인딩과 습식 식각을 거치며 표면 손상층이 순차적으로 제거되는 웨이퍼입니다.');
+  waferPrep.position.set(-0.9, 1.7, 0);
+  pick(waferPrep, '표면처리 중인 웨이퍼', '상·하부 플래튼 사이에 끼워져 그라인딩과 습식 식각을 거치며 표면 손상층이 순차적으로 제거되는 웨이퍼입니다.');
   prep.add(waferPrep);
 
   const prepLabel = makeLabel('랩핑/그라인딩 · 습식 식각', { color: '#8ab4ff', size: 0.36 });
@@ -221,12 +284,21 @@ export function build3D(ctx) {
 
   const carrierHead = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.22, 32), MAT.steel(0x828da3));
   carrierHead.position.set(0, 1.85, 0);
-  pick(carrierHead, '웨이퍼 캐리어 헤드', '웨이퍼를 진공 척으로 고정해 회전시키며 일정 압력으로 연마 패드에 밀착시키는 헤드입니다.');
+  pick(carrierHead, '웨이퍼 캐리어 헤드 (Polishing Head)', '웨이퍼를 진공 척으로 고정해 회전시키며 일정 압력으로 연마 패드에 밀착시키는 헤드입니다. 내부에는 웨이퍼 반경별 압력을 독립 제어하는 다중 압력존(멤브레인)이 있습니다.');
   polisher.add(shadow(carrierHead));
+  const retainerRing = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 10, 40), MAT.dark(0x1c2028));
+  retainerRing.rotation.x = Math.PI / 2;
+  retainerRing.position.set(0, -0.1, 0);
+  pick(retainerRing, '리테이너 링 (Retainer Ring)', '캐리어 헤드 가장자리를 감싸 웨이퍼가 미끄러져 나가지 않게 잡아주는 고리입니다. 재질은 PPS 등 엔지니어링 플라스틱이나 세라믹, 색상은 짙은 회색~검정입니다.');
+  carrierHead.add(retainerRing);
   const waferOnPad = makeBareWafer(0.42, 0.03);
   waferOnPad.position.set(0, 1.72, 0);
   polisher.add(waferOnPad);
 
+  const slurryArm = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.04, 0.06), MAT.paint(0xe8ecf4));
+  slurryArm.position.set(0.7, 1.55, 0);
+  pick(slurryArm, '슬러리 암 (Slurry Arm)', '실리카/세리아 입자가 섞인 유백색 연마 슬러리를 패드 표면으로 적하하는 가늘고 긴 노즐 암입니다.');
+  polisher.add(slurryArm);
   const slurryNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.3), MAT.dark(0x2a3244));
   slurryNozzle.position.set(0.75, 1.55, 0.4);
   pick(slurryNozzle, '슬러리 노즐', '연마 슬러리를 패드에 공급해 화학적 연마 반응을 돕습니다. 슬러리 선택비가 표면 결함(dishing/scratch)을 좌우합니다.');
@@ -234,6 +306,18 @@ export function build3D(ctx) {
   const slurryStream = makeParticleStream({ count: 40, area: 0.05, yTop: 1.5, yBottom: 1.0, color: 0xbfe8ff, size: 0.02 });
   slurryStream.position.set(0.6, 0, 0.3);
   polisher.add(slurryStream);
+
+  // 패드 컨디셔너 — 다이아몬드 그릿 디스크가 패드 표면을 긁어 연마력을 재생
+  const conditionerArm = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.05), MAT.steel(0x828da3));
+  conditionerArm.position.set(-0.6, 1.55, 0.55);
+  polisher.add(conditionerArm);
+  const conditionerDisk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.03, 24),
+    new THREE.MeshStandardMaterial({ color: 0xb9c2d4, metalness: 0.6, roughness: 0.85 }));
+  conditionerDisk.position.set(-0.8, 1.48, 0.55);
+  pick(conditionerDisk, '패드 컨디셔너 (Pad Conditioner)', '다이아몬드 입자가 박힌 은회색 디스크로, 연마 중 패드 표면을 긁어(scouring) 연마력을 재생시킵니다.');
+  polisher.add(conditionerArm, shadow(conditionerDisk));
+  polisher.userData.conditionerDisk = conditionerDisk;
+  polisher.userData.conditionerArm = conditionerArm;
 
   const polisherLabel = makeLabel('CMP 폴리셔', { color: '#8ab4ff', size: 0.4 });
   polisherLabel.position.set(0, 2.8, 0);
@@ -267,6 +351,12 @@ export function build3D(ctx) {
   const towerI = makeSignalTower();
   towerI.position.set(0.95, 0, 0.7);
   inspect.add(towerI);
+
+  const inspectScreen = makeScreenPanel({ w: 0.6, h: 0.4, accent: '#30d158' });
+  inspectScreen.position.set(-0.95, 1.75, 0.15);
+  inspectScreen.rotation.y = -Math.PI * 0.15;
+  pick(inspectScreen, '검사 결과 스크린', '표면 파티클 카운트·TTV·저항률 검사 결과를 실시간으로 표시하는 공정 모니터입니다.');
+  inspect.add(inspectScreen);
 
   const inspectLabel = makeLabel('세정/검사', { color: '#8ab4ff', size: 0.4 });
   inspectLabel.position.set(0, 2.6, 0);
@@ -336,7 +426,7 @@ export function build3D(ctx) {
       polishingActive = false; inspectingActive = true;
     },
   ];
-  waferPrep.userData.target = new THREE.Vector3(-0.9, 1.85, 0);
+  waferPrep.userData.target = new THREE.Vector3(-0.9, 1.7, 0);
   stepFx[0]();
 
   return {
@@ -353,15 +443,20 @@ export function build3D(ctx) {
       }
       updateIngot(ingotLen);
 
-      // 히터 발광 lerp
-      const cur = heaterRing.material.emissiveIntensity;
-      heaterRing.material.emissiveIntensity = cur + (heaterTarget - cur) * Math.min(1, dt * 2);
-      meltDisc.material.emissiveIntensity = 2.4 + heaterRing.material.emissiveIntensity * 1.2 + Math.sin(t * 5) * 0.3;
+      // 히터 코일 발광 lerp (다단 링 전체)
+      const cur = heaterRings[0].material.emissiveIntensity;
+      const next = cur + (heaterTarget - cur) * Math.min(1, dt * 2);
+      heaterRings.forEach(r => { r.material.emissiveIntensity = next; });
+      meltDisc.material.emissiveIntensity = 2.4 + next * 1.2 + Math.sin(t * 5) * 0.3;
+      furnaceTower.userData.setState(growing ? 'run' : 'warn');
 
       // 와이어 소 진행
       wireStrands.forEach((w, i) => { w.material.opacity = sawing ? 0.55 + 0.35 * Math.sin(t * 40 + i) : 0.85; });
+      wireMeshNet.visible = ingotOnSaw.visible;
+      wireMeshNet.material.opacity = sawing ? 0.4 + 0.25 * Math.sin(t * 30) : 0.55;
       if (sawing) {
         ingotOnSaw.position.y = Math.max(ingotOnSaw.position.y - 0.15 * dt, SAW_BED_Y);
+        wireMeshNet.position.y = ingotOnSaw.position.y;
         sliceRevealTimer += dt;
         if (sliceRevealTimer > 0.45 && sliceRevealCount < SLICE_N) {
           sliceRevealTimer = 0;
@@ -370,8 +465,9 @@ export function build3D(ctx) {
         }
       }
 
-      // 그라인더 회전
+      // 양면 그라인더 — 상/하 플래튼 반대 방향 회전
       grindWheel.rotation.y += (grindingActive ? 10 : 1.2) * dt;
+      grindWheelBottom.rotation.y -= (grindingActive ? 8 : 1.0) * dt;
 
       // 식각조 액면 wobble
       etchLiquid.position.y = 0.66 + (etchingActive ? Math.sin(t * 3) * 0.01 : 0);
@@ -390,6 +486,12 @@ export function build3D(ctx) {
       waferOnPad.rotation.y += 2 * dt;
       slurryStream.visible = polishingActive;
       if (polishingActive) slurryStream.userData.tick(dt);
+      slurryArm.position.z = Math.sin(t * 0.8) * 0.3;
+      slurryNozzle.position.z = 0.4 + Math.sin(t * 0.8) * 0.15;
+      const condSwing = Math.sin(t * 1.2) * 0.25;
+      polisher.userData.conditionerArm.rotation.y = condSwing * 0.4;
+      polisher.userData.conditionerDisk.position.x = -0.8 - condSwing * 0.2;
+      polisher.userData.conditionerDisk.rotation.y += (polishingActive ? 6 : 0.8) * dt;
 
       // 검사 스캐너 스윕
       inspWafer.rotation.y += 0.4 * dt;

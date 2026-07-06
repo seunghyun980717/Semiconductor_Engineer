@@ -325,6 +325,218 @@ export function makeDie({ w = 0.5, d = 0.35, h = 0.05, color = 0x474f66 } = {}) 
   return die;
 }
 
+/* ============================================================
+   v2 디테일 프리미티브 — 장비 "내부"를 보여주기 위한 부품들
+   ============================================================ */
+
+// 오픈 챔버: 전면 1/4이 절개되어 내부(척·샤워헤드 등)가 보이는 진공 챔버
+export function makeOpenChamber({ r = 1.0, h = 1.2, y = 1.0, color = 0xb9c2d4, opening = Math.PI * 0.55 } = {}) {
+  const grp = new THREE.Group();
+  const thetaStart = Math.PI / 2 - opening / 2; // 전면(+z) 중심으로 개구
+  const shell = new THREE.Mesh(
+    new THREE.CylinderGeometry(r, r, h, 48, 1, true, thetaStart + opening, Math.PI * 2 - opening),
+    new THREE.MeshStandardMaterial({ color, metalness: 0.85, roughness: 0.35, side: THREE.DoubleSide }));
+  shell.position.y = y;
+  grp.add(shadow(shell));
+  // 절개 단면 (두께감)
+  [thetaStart + opening, thetaStart + Math.PI * 2].forEach(a => {
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.09), MAT.steel(0x6b7488));
+    edge.position.set(Math.cos(a + Math.PI / 2) * 0 + Math.sin(a) * r, y, Math.cos(a) * r);
+    edge.rotation.y = a;
+    grp.add(edge);
+  });
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.1, r * 1.1, 0.12, 48), MAT.steel(0x828da3));
+  lid.position.y = y + h / 2 + 0.06;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.08, r * 1.15, 0.14, 48), MAT.steel(0x828da3));
+  base.position.y = y - h / 2 - 0.07;
+  grp.add(shadow(lid), shadow(base));
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.05, 8), MAT.dark(0x39415a));
+    bolt.position.set(Math.cos(a) * r * 1.02, y + h / 2 + 0.06, Math.sin(a) * r * 1.02);
+    grp.add(bolt);
+  }
+  grp.userData.innerY = y;
+  return grp;
+}
+
+// 정전척(ESC) + 포커스 링 + 리프트 핀 — 식각/증착 챔버 내부의 핵심
+export function makeESC({ r = 0.5, y = 0.7 } = {}) {
+  const grp = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, y - 0.1, 20), MAT.steel(0x6b7488));
+  shaft.position.y = (y - 0.1) / 2;
+  grp.add(shadow(shaft));
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.14, 48), MAT.dark(0x2e3648));
+  body.position.y = y - 0.07;
+  grp.add(shadow(body));
+  // 세라믹 표면 (밝은 톤)
+  const surf = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.92, r * 0.92, 0.03, 48),
+    new THREE.MeshStandardMaterial({ color: 0xd8d4c8, metalness: 0.1, roughness: 0.55 }));
+  surf.position.y = y + 0.01;
+  grp.add(surf);
+  // 포커스 링 (플라즈마 균일도용 — 실리콘/석영 링)
+  const focus = new THREE.Mesh(new THREE.TorusGeometry(r * 1.02, 0.045, 12, 48),
+    new THREE.MeshStandardMaterial({ color: 0x8a7a5a, metalness: 0.3, roughness: 0.5 }));
+  focus.rotation.x = Math.PI / 2;
+  focus.position.y = y;
+  grp.add(focus);
+  grp.userData.topY = y + 0.03;
+  grp.userData.focusRing = focus;
+  return grp;
+}
+
+// 터보 분자 펌프 — 챔버 하부에 붙는 냉각핀 원통
+export function makeTurboPump({ r = 0.3, h = 0.55 } = {}) {
+  const grp = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.85, h, 24), MAT.steel(0x9aa4b5));
+  grp.add(shadow(body));
+  for (let i = 0; i < 6; i++) {
+    const fin = new THREE.Mesh(new THREE.TorusGeometry(r * 1.02, 0.018, 8, 28), MAT.steel(0x7f8ba3));
+    fin.rotation.x = Math.PI / 2;
+    fin.position.y = -h / 2 + 0.1 + i * (h - 0.2) / 5;
+    grp.add(fin);
+  }
+  const flange = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.25, r * 1.25, 0.05, 24), MAT.steel(0x828da3));
+  flange.position.y = h / 2 + 0.025;
+  grp.add(flange);
+  return grp;
+}
+
+// 가스 박스 — MFC(질량유량계) 여러 개가 줄지어 배관에 연결된 패널
+export function makeGasBox({ w = 1.0, h = 1.4, lines = 4 } = {}) {
+  const grp = new THREE.Group();
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.36), MAT.paint(0xcfd6e2));
+  panel.position.y = h / 2;
+  grp.add(shadow(panel));
+  for (let i = 0; i < lines; i++) {
+    const yy = h * 0.25 + i * (h * 0.55 / Math.max(lines - 1, 1));
+    const mfc = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.11, 0.14), MAT.dark(0x39415a));
+    mfc.position.set(-w * 0.18, yy, 0.22);
+    grp.add(shadow(mfc));
+    const led = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.01), MAT.glow(0x30d158, 1.6));
+    led.position.set(-w * 0.18, yy + 0.04, 0.295);
+    grp.add(led);
+    grp.add(makePipe([[-w * 0.42, yy, 0.22], [-w * 0.26, yy, 0.22]], { radius: 0.022 }));
+    grp.add(makePipe([[-w * 0.10, yy, 0.22], [w * 0.30, yy, 0.22], [w * 0.42, yy + 0.08, 0.1]], { radius: 0.022 }));
+    // 밸브 핸들
+    const valve = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 12), MAT.glow(0xff9d5c, 0.5));
+    valve.position.set(w * 0.12, yy + 0.045, 0.22);
+    grp.add(valve);
+  }
+  return grp;
+}
+
+// RF 매칭 네트워크 — 식각기 옆의 작은 박스 + 동축 케이블
+export function makeRFMatch({ w = 0.5 } = {}) {
+  const grp = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(w, 0.32, 0.4), MAT.paint(0xb9c2d4));
+  box.position.y = 0.16;
+  grp.add(shadow(box));
+  const led = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.015, 10), MAT.glow(0xff5a2a, 2));
+  led.rotation.x = Math.PI / 2;
+  led.position.set(w * 0.28, 0.24, 0.2);
+  grp.add(led);
+  grp.userData.led = led;
+  return grp;
+}
+
+// 석영 웨이퍼 보트 — 수직로/산화로에 웨이퍼 수십장을 세워 담는 지그
+export function makeWaferBoat({ slots = 10, waferR = 0.3, gap = 0.075 } = {}) {
+  const grp = new THREE.Group();
+  const h = slots * gap + 0.2;
+  for (const dx of [-waferR * 0.85, waferR * 0.85]) {
+    for (const dz of [-waferR * 0.55, waferR * 0.55]) {
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, h, 10), MAT.glass(0xeef4ff, 0.55));
+      rod.position.set(dx, h / 2, dz);
+      grp.add(rod);
+    }
+  }
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(waferR * 1.15, waferR * 1.15, 0.04, 32), MAT.glass(0xeef4ff, 0.5));
+  plate.position.y = 0.02;
+  grp.add(plate);
+  const wafers = [];
+  for (let i = 0; i < slots; i++) {
+    const w = makeBareWafer(waferR, 0.018);
+    w.position.y = 0.14 + i * gap;
+    grp.add(w);
+    wafers.push(w);
+  }
+  grp.userData.wafers = wafers;
+  grp.userData.height = h;
+  return grp;
+}
+
+// 스핀들 + 휠 — 그라인더/다이서의 회전 축. userData.wheel을 tick에서 회전
+export function makeSpindle({ wheelR = 0.4, wheelT = 0.1, len = 0.9, color = 0x3aa76d } = {}) {
+  const grp = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, len, 16), MAT.steel());
+  shaft.rotation.z = Math.PI / 2;
+  shaft.position.x = len / 2;
+  grp.add(shadow(shaft));
+  const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.4, 20), MAT.paint(0xaab3c4));
+  motor.rotation.z = Math.PI / 2;
+  motor.position.x = len * 0.75;
+  grp.add(shadow(motor));
+  const wheel = new THREE.Group();
+  const disk = new THREE.Mesh(new THREE.CylinderGeometry(wheelR, wheelR, wheelT, 36), MAT.steel(0x8a94a8));
+  disk.rotation.z = Math.PI / 2;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(wheelR, wheelT * 0.42, 10, 36),
+    new THREE.MeshStandardMaterial({ color, metalness: 0.4, roughness: 0.75 }));
+  rim.rotation.y = Math.PI / 2;
+  wheel.add(shadow(disk), rim);
+  grp.add(wheel);
+  grp.userData.wheel = wheel;
+  return grp;
+}
+
+// 공정 모니터 스크린 — 가짜 SPC 그래프가 그려진 발광 패널 (캔버스 텍스처)
+export function makeScreenPanel({ w = 0.66, h = 0.42, accent = '#0a84ff' } = {}) {
+  const cv = document.createElement('canvas');
+  cv.width = 330; cv.height = 210;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#0a0f18'; g.fillRect(0, 0, 330, 210);
+  g.strokeStyle = 'rgba(255,255,255,.12)';
+  for (let i = 1; i < 5; i++) { g.beginPath(); g.moveTo(0, i * 42); g.lineTo(330, i * 42); g.stroke(); }
+  g.strokeStyle = accent; g.lineWidth = 2.5; g.beginPath();
+  for (let x = 0; x <= 330; x += 10) {
+    const y = 105 + Math.sin(x * 0.07) * 26 + (Math.sin(x * 0.31) * 14);
+    x === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+  }
+  g.stroke();
+  g.fillStyle = '#30d158'; g.font = 'bold 22px monospace';
+  g.fillText('● RUN', 14, 32);
+  g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '16px monospace';
+  g.fillText('PROCESS  OK', 220, 32);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.05, h + 0.05, 0.03), MAT.dark(0x1a1e2a));
+  frame.position.z = -0.018;
+  const grp = new THREE.Group();
+  grp.add(frame, scr);
+  return grp;
+}
+
+// 주름 호스 — 진공 배관/케이블 덕트용 (튜브 + 링 마디)
+export function makeHose(points, { radius = 0.06, color = 0x5c6478 } = {}) {
+  const grp = new THREE.Group();
+  const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p)));
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, radius, 12, false), MAT.plastic(color));
+  grp.add(shadow(tube));
+  const n = 14;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const pos = curve.getPointAt(t);
+    const tan = curve.getTangentAt(t);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.12, radius * 0.16, 8, 16), MAT.plastic(0x454d63));
+    ring.position.copy(pos);
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan);
+    grp.add(ring);
+  }
+  return grp;
+}
+
 // 로드포트 (FOUP 거치대)
 export function makeLoadPort() {
   const grp = new THREE.Group();

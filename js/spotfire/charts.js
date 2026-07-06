@@ -2,9 +2,9 @@
 // 모든 차트는 다크 테마, HiDPI 대응, 마킹(선택) 연동을 지원한다.
 
 const C = {
-  bg: '#141a28', grid: '#26314a', axis: '#5c6880', text: '#96a2b8',
-  line: '#58a6ff', point: '#8ab4ff', target: '#3ddc84', limit: '#ff4d6d',
-  spec: '#ffd166', viol: '#ff4d6d', sel: '#ff5a2a',
+  bg: '#0e0e13', grid: '#22222c', axis: '#6e6e76', text: '#a1a1a8',
+  line: '#0a84ff', point: '#64a8ff', target: '#30d158', limit: '#ff453a',
+  spec: '#ffd60a', viol: '#ff453a', sel: '#ff5a2a',
 };
 const FONT = '11px "Cascadia Code", Consolas, monospace';
 

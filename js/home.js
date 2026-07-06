@@ -24,9 +24,11 @@ document.getElementById('proc-cards').innerHTML = PROCESSES.map(p => `
   </a>`;
 
 // ---- 3D 여정 ----
+// 히어로 텍스트(좌측)와 겹치지 않도록 3D 씬을 화면 우측으로 오프셋
+const wide = window.innerWidth > 980;
 const ctx = initScene(document.getElementById('hero-canvas'), {
-  cameraPos: [0, 9, 15],
-  target: [0, 1, 0],
+  cameraPos: [wide ? -4.2 : 0, 9.5, 15.5],
+  target: [wide ? -4.2 : 0, 0.8, 0],
 });
 const world = new THREE.Group();
 ctx.scene.add(world);
