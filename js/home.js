@@ -30,6 +30,8 @@ const ctx = initScene(document.getElementById('hero-canvas'), {
   cameraPos: [wide ? -4.2 : 0, 9.5, 15.5],
   target: [wide ? -4.2 : 0, 0.8, 0],
 });
+// 홈에서는 휠을 페이지 스크롤에 양보 (줌 비활성화 — 회전/클릭은 유지)
+ctx.controls.enableZoom = false;
 const world = new THREE.Group();
 ctx.scene.add(world);
 ctx.setPickRoot(world);
