@@ -31,6 +31,8 @@ git add -A && git commit -m "..." && git push
 | `js/spotfire/datagen.js` | Lot(8)→Wafer(25)→Site(13) 데이터 생성, 이상 주입, SPC(WE rules), FDC 센서 |
 | `js/spotfire/charts.js` | 캔버스 차트 (관리도/빈맵/사이트맵/박스플롯/히스토그램/FDC) |
 | `js/spotfire/cases.js` | 케이스 뱅크. `anomaly.param`은 반드시 `PROC_DATA_DEFS[proc].params[].key` |
+| `js/spotfire/eqlog.js` | 설비 로그 엔진: TOOLS/ALARM_CODES/E10 타임라인/genShiftLog/OCAP_CASES. scenario.sensorKey는 FDC_DEFS의 key와 일치 필수 |
+| `js/data/metrology.js` | 계측 장비 카탈로그 — links.proc는 PROC_DATA_DEFS 키 |
 
 공정 모듈 export 계약 (전 모듈 동일):
 ```js
@@ -61,6 +63,8 @@ node tools/mobile-test.mjs ./.screenshots      # 모바일(390px) 뷰포트: 가
   git 오류 "dubious ownership" 발생 시 safe.directory 등록 필요 (이미 등록됨).
 
 ## 코드 규칙
+
+- **테마는 라이트**(v3, Apple 라이트 스타일). 다크 하드코딩 금지 — CSS 변수와 charts.js의 C 상수 팔레트 사용. 로그 뷰어(.log-viewer)만 의도적으로 다크(단말 스타일)
 
 - 콘텐츠·UI 텍스트는 한국어, 전문용어는 병기 — 예: 식각(Etch)
 - 공정 모듈 안에서는 `three`와 `../lib/equip-kit.js`만 import (다른 경로 금지)

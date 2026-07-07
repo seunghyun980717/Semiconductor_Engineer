@@ -273,10 +273,10 @@ export function makeLabel(text, { color = '#ff5a2a', size = 0.5 } = {}) {
   const w = Math.ceil(g.measureText(text).width) + 48;
   cv.width = w; cv.height = 80;
   g.font = font;
-  g.fillStyle = 'rgba(11,14,20,.82)';
+  g.fillStyle = 'rgba(255,255,255,.92)';
   g.beginPath(); g.roundRect(0, 8, w, 64, 16); g.fill();
   g.strokeStyle = color; g.lineWidth = 3; g.stroke();
-  g.fillStyle = '#e8ecf4'; g.textBaseline = 'middle';
+  g.fillStyle = '#1d1d1f'; g.textBaseline = 'middle';
   g.fillText(text, 24, 42);
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;

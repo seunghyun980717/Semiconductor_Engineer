@@ -16,6 +16,7 @@ const PAGES = [
   { name: 'proc-packaging', url: '/process.html?id=packaging' },
   { name: 'hbm', url: '/hbm.html', extraWait: 2500 },
   { name: 'spotfire', url: '/spotfire.html' },
+  { name: 'equipment', url: '/equipment.html', extraWait: 2500 },
   { name: 'spotfire-hbm', url: '/spotfire.html?proc=hbm' },
 ];
 

@@ -2,9 +2,9 @@
 // 모든 차트는 다크 테마, HiDPI 대응, 마킹(선택) 연동을 지원한다.
 
 const C = {
-  bg: '#0e0e13', grid: '#22222c', axis: '#6e6e76', text: '#a1a1a8',
-  line: '#0a84ff', point: '#64a8ff', target: '#30d158', limit: '#ff453a',
-  spec: '#ffd60a', viol: '#ff453a', sel: '#ff5a2a',
+  bg: '#ffffff', grid: '#e8e8ed', axis: '#a1a1a6', text: '#6e6e73',
+  line: '#0071e3', point: '#4a95e8', target: '#248a3d', limit: '#d70015',
+  spec: '#b25e00', viol: '#d70015', sel: '#e8481f',
 };
 const FONT = '11px "Cascadia Code", Consolas, monospace';
 
@@ -36,7 +36,7 @@ export function controlChart(canvas, opts) {
   // 로트 경계 배경 밴드
   lotBounds.forEach((b, i) => {
     if (i % 2 === 0) return;
-    g.fillStyle = 'rgba(255,255,255,.025)';
+    g.fillStyle = 'rgba(0,0,0,.03)';
     g.fillRect(X(b.start), padT, X(b.end) - X(b.start), ph);
   });
 
@@ -106,11 +106,11 @@ export function siteMap(canvas, sites, values, { def, title = '' } = {}) {
 
   // 웨이퍼 원판
   g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2);
-  g.fillStyle = '#1a2234'; g.fill();
+  g.fillStyle = '#eef1f6'; g.fill();
   g.strokeStyle = C.axis; g.lineWidth = 1.5; g.stroke();
   // 노치
   g.beginPath(); g.arc(cx, cy + R, 5, 0, Math.PI * 2);
-  g.fillStyle = C.bg; g.fill();
+  g.fillStyle = '#d5dae2'; g.fill();
 
   const min = Math.min(...values), max = Math.max(...values);
   const span = max - min || 1;
@@ -145,7 +145,7 @@ export function binMap(canvas, grid, { pattern = '' } = {}) {
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const v = grid[y][x];
     if (v < 0) continue;
-    g.fillStyle = v === 1 ? '#2f9e5f' : '#ff4d6d';
+    g.fillStyle = v === 1 ? '#34a853' : '#e5484d';
     g.fillRect(ox + x * cell + 0.5, oy + y * cell + 0.5, cell - 1, cell - 1);
   }
   const flat = grid.flat().filter(v => v >= 0);
@@ -187,7 +187,7 @@ export function boxPlot(canvas, groups, { def, stats, color = C.line } = {}) {
 
     g.strokeStyle = gr.highlight ? C.sel : C.axis; g.lineWidth = gr.highlight ? 2 : 1;
     g.beginPath(); g.moveTo(x, Y(lo)); g.lineTo(x, Y(q1)); g.moveTo(x, Y(q3)); g.lineTo(x, Y(hi)); g.stroke();
-    g.fillStyle = gr.highlight ? 'rgba(255,90,42,.35)' : 'rgba(88,166,255,.25)';
+    g.fillStyle = gr.highlight ? 'rgba(232,72,31,.28)' : 'rgba(0,113,227,.16)';
     g.fillRect(x - bxw / 2, Y(q3), bxw, Y(q1) - Y(q3));
     g.strokeRect(x - bxw / 2, Y(q3), bxw, Y(q1) - Y(q3));
     g.strokeStyle = gr.highlight ? C.sel : color; g.lineWidth = 2;
@@ -226,7 +226,7 @@ export function histogram(canvas, values, { def, stats, bins = 24, color = C.lin
 
   counts.forEach((c, i) => {
     const x0 = padL + (i / bins) * pw;
-    g.fillStyle = 'rgba(88,166,255,.55)';
+    g.fillStyle = 'rgba(0,113,227,.42)';
     g.fillRect(x0 + 1, padT + ph * (1 - c / maxC), pw / bins - 2, ph * (c / maxC));
   });
 
@@ -242,12 +242,12 @@ export function histogram(canvas, values, { def, stats, bins = 24, color = C.lin
   vline(def?.lsl, C.spec, 'LSL');
   vline(def?.usl, C.spec, 'USL');
   vline(def?.target, C.target, 'T');
-  if (stats) vline(stats.allMean, '#8ab4ff', 'x̄');
+  if (stats) vline(stats.allMean, '#4a95e8', 'x̄');
 }
 
 /* ---------------- FDC 트렌드 (웨이퍼별 센서 요약값) ---------------- */
 // 정상 밴드(base±3σ)를 배경으로 깔고 벗어나는 구간을 강조. 클릭=웨이퍼 선택(chartHitTest 호환)
-export function fdcTrend(canvas, values, { sensor, selected = -1, color = '#22d3ee', lotBounds = [] } = {}) {
+export function fdcTrend(canvas, values, { sensor, selected = -1, color = '#0e9db5', lotBounds = [] } = {}) {
   const { g, w, h } = setup(canvas);
   const padL = 52, padR = 12, padT = 14, padB = 22;
   const pw = w - padL - padR, ph = h - padT - padB;
@@ -260,17 +260,17 @@ export function fdcTrend(canvas, values, { sensor, selected = -1, color = '#22d3
 
   lotBounds.forEach((b, i) => {
     if (i % 2 === 0) return;
-    g.fillStyle = 'rgba(255,255,255,.025)';
+    g.fillStyle = 'rgba(0,0,0,.03)';
     g.fillRect(X(b.start), padT, X(b.end) - X(b.start), ph);
   });
 
   // 정상 운전 밴드
-  g.fillStyle = 'rgba(61,220,132,.10)';
+  g.fillStyle = 'rgba(36,138,61,.08)';
   g.fillRect(padL, Y(bandHi), pw, Y(bandLo) - Y(bandHi));
-  g.strokeStyle = 'rgba(61,220,132,.5)'; g.setLineDash([3, 4]); g.lineWidth = 1;
+  g.strokeStyle = 'rgba(36,138,61,.45)'; g.setLineDash([3, 4]); g.lineWidth = 1;
   [bandHi, bandLo].forEach(v => { g.beginPath(); g.moveTo(padL, Y(v)); g.lineTo(w - padR, Y(v)); g.stroke(); });
   g.setLineDash([]);
-  g.fillStyle = 'rgba(61,220,132,.8)'; g.font = FONT;
+  g.fillStyle = 'rgba(36,138,61,.9)'; g.font = FONT;
   g.fillText('정상밴드', 4, Y(bandHi) + 3.5);
 
   // 데이터
@@ -296,7 +296,7 @@ export function fdcTrend(canvas, values, { sensor, selected = -1, color = '#22d3
 }
 
 /* ---------------- FDC 트레이스 (단일 run 실시간 파형) ---------------- */
-export function traceChart(canvas, pts, { sensor, color = '#a78bfa' } = {}) {
+export function traceChart(canvas, pts, { sensor, color = '#7856d6' } = {}) {
   const { g, w, h } = setup(canvas);
   const padL = 52, padR = 12, padT = 14, padB = 22;
   const pw = w - padL - padR, ph = h - padT - padB;
@@ -308,15 +308,15 @@ export function traceChart(canvas, pts, { sensor, color = '#a78bfa' } = {}) {
   const Y = v => padT + (1 - (v - min) / (max - min)) * ph;
 
   // 정상 공정 구간 밴드
-  g.fillStyle = 'rgba(61,220,132,.08)';
+  g.fillStyle = 'rgba(36,138,61,.07)';
   g.fillRect(padL, Y(bandHi), pw, Y(bandLo) - Y(bandHi));
-  g.strokeStyle = 'rgba(61,220,132,.45)'; g.setLineDash([3, 4]);
+  g.strokeStyle = 'rgba(36,138,61,.4)'; g.setLineDash([3, 4]);
   [bandHi, bandLo].forEach(v => { g.beginPath(); g.moveTo(padL, Y(v)); g.lineTo(w - padR, Y(v)); g.stroke(); });
   g.setLineDash([]);
 
   // 공정 구간 표시 (램프업/정상/램프다운)
   const seg = (x0, x1, label) => {
-    g.fillStyle = 'rgba(150,162,184,.6)'; g.font = '10px monospace'; g.textAlign = 'center';
+    g.fillStyle = 'rgba(110,110,115,.75)'; g.font = '10px monospace'; g.textAlign = 'center';
     g.fillText(label, (X(x0) + X(x1)) / 2, padT + 10);
     g.textAlign = 'left';
   };
@@ -335,6 +335,32 @@ export function traceChart(canvas, pts, { sensor, color = '#a78bfa' } = {}) {
   g.fillText(fmtN(max - pad), padL - 46, padT + 8);
   g.fillText(fmtN(min + pad), padL - 46, padT + ph);
   g.fillText('공정 시간 →', w - 84, h - 6);
+}
+
+/* ---------------- 알람 파레토 (수평 막대) ---------------- */
+export function pareto(canvas, items, { color = '#e8481f' } = {}) {
+  const { g, w, h } = setup(canvas);
+  if (!items.length) {
+    g.fillStyle = C.text; g.font = FONT;
+    g.fillText('알람 없음 — 안정 가동 중', 12, 24);
+    return;
+  }
+  const top = items.slice(0, 6);
+  const maxN = top[0].n;
+  const rowH = Math.min(34, (h - 16) / top.length);
+  const padL = 76, padR = 34;
+  top.forEach((it, i) => {
+    const y = 10 + i * rowH;
+    const bw = (w - padL - padR) * (it.n / maxN);
+    g.fillStyle = C.text; g.font = FONT; g.textAlign = 'right';
+    g.fillText(it.code, padL - 8, y + rowH / 2 + 3);
+    g.textAlign = 'left';
+    const isInterlock = it.code.startsWith('IL');
+    g.fillStyle = isInterlock ? '#d70015' : (i === 0 ? color : 'rgba(232,72,31,.45)');
+    g.beginPath(); g.roundRect(padL, y + rowH * 0.18, Math.max(bw, 3), rowH * 0.64, 5); g.fill();
+    g.fillStyle = C.text;
+    g.fillText(String(it.n), padL + Math.max(bw, 3) + 7, y + rowH / 2 + 3);
+  });
 }
 
 /* ---------------- 유틸 ---------------- */

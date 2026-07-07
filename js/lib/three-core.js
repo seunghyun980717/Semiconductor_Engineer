@@ -5,7 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 export function initScene(container, opts = {}) {
   const {
-    background = 0x0b0e14,
+    background = 0xe9ecf1,   // 라이트 클린룸 톤
     fog = true,
     cameraPos = [8, 6, 10],
     target = [0, 1.2, 0],
@@ -41,7 +41,7 @@ export function initScene(container, opts = {}) {
   controls.maxDistance = 40;
 
   // ---- 조명 ----
-  scene.add(new THREE.HemisphereLight(0xaebbdd, 0x1a1408, 0.85));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a929e, 0.95));
   const key = new THREE.DirectionalLight(0xffffff, 2.2);
   key.position.set(8, 14, 6);
   key.castShadow = true;
@@ -54,16 +54,16 @@ export function initScene(container, opts = {}) {
   rim.position.set(-10, 6, -8);
   scene.add(rim);
 
-  // ---- 클린룸 바닥 ----
+  // ---- 클린룸 바닥 (라이트) ----
   if (floor) {
     const floorMesh = new THREE.Mesh(
       new THREE.CircleGeometry(30, 64),
-      new THREE.MeshStandardMaterial({ color: 0x11151f, roughness: 0.85, metalness: 0.25 })
+      new THREE.MeshStandardMaterial({ color: 0xdadfe7, roughness: 0.9, metalness: 0.08 })
     );
     floorMesh.rotation.x = -Math.PI / 2;
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
-    const grid = new THREE.GridHelper(60, 60, 0x26314a, 0x1a2234);
+    const grid = new THREE.GridHelper(60, 60, 0xb9c1cf, 0xcdd3de);
     grid.position.y = 0.001;
     scene.add(grid);
   }

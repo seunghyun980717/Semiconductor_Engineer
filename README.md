@@ -26,6 +26,7 @@ npx serve .
 | `process.html?id=<공정>` | 공정별 3D 설비 + 단계 애니메이션 + 원리/장비/파라미터/불량 학습 |
 | `hbm.html` | HBM 심화 — TSV·적층·MR-MUF 인터랙티브 3D |
 | `spotfire.html` | 계측 데이터 대시보드 (SPC 관리도·빈맵·박스플롯·FDC 장비 센서 트렌드/트레이스) + 이상 사례 퀴즈 학습 |
+| `equipment.html` | 설비 분석실 (Machine Engineering) — SEMI E10 타임라인·SECS/GEM 이벤트 로그·알람 파레토·OCAP 트러블슈팅 실습·계측 장비 카탈로그 |
 
 ### 8대 공정
 웨이퍼 제조 → 산화 → 포토 → 식각 → 증착·이온주입 → 금속배선 → EDS 테스트 → 패키징
@@ -41,6 +42,8 @@ js/processes/<id>.js       공정별 모듈 (3D 장비 + 학습 콘텐츠)
 js/spotfire/datagen.js     팹 계측 데이터 시뮬레이터 (Lot/Wafer/Site + 이상 주입 + SPC + FDC 센서)
 js/spotfire/charts.js      캔버스 차트 (관리도/웨이퍼맵/빈맵/박스플롯/히스토그램)
 js/spotfire/cases.js       공정별 이상 사례 학습 케이스 뱅크 (18개)
+js/spotfire/eqlog.js       설비 로그 시뮬레이터 (E10 타임라인·SECS/GEM 이벤트·OCAP 시나리오)
+js/data/metrology.js       계측 장비 카탈로그 (10종)
 vendor/                    Three.js 로컬 번들 (three.module.js + addons)
 docs/research/             공정 기술 리서치 자료 (학습 참고 문서)
 docs/MODULE_SPEC.md        공정 모듈 제작 사양서

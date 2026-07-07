@@ -71,6 +71,7 @@ export function renderNav(activeId) {
     ...PROCESSES.map(p => ({ href: `process.html?id=${p.id}`, id: p.id, label: `${p.num}. ${p.title}` })),
     { href: 'hbm.html', id: 'hbm', label: '★ HBM' },
     { href: 'spotfire.html', id: 'spotfire', label: '📊 Spotfire 분석실' },
+    { href: 'equipment.html', id: 'equipment', label: '🔧 설비 분석실' },
   ];
   nav.innerHTML = links.map(l =>
     `<a href="${l.href}" class="${l.id === activeId ? 'active' : ''}">${l.label}</a>`
