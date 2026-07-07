@@ -1,3 +1,4 @@
 node_modules/
 .browser-test.tmp.mjs
 .screenshots/
+*.tmp.mjs
